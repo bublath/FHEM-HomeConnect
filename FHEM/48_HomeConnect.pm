@@ -176,14 +176,10 @@ $HomeConnect_DeviceTrans_DE{"Hob"} = {
 #   known settings PowerState, Lighting, LightingBrightness
 #   known programs (Cooking.Common.Program.) Hood.Automatic, Hood.Venting, Hood.DelayedShutoff, CleaningModes.ApplianceOnRinsing
 #   known problems: program has additional useless prefix Hood
-$HomeConnect_DeviceSettings{"Hood"} =
-  [ "PowerState", "Lighting", "LightingBrightness" ];
+$HomeConnect_DeviceSettings{"Hood"} = [ "PowerState", "Lighting", "LightingBrightness" ];
 $HomeConnect_DevicePrefix{"Hood"}   = "Cooking.Common";
 $HomeConnect_DevicePowerOff{"Hood"} = undef;
-$HomeConnect_DeviceEvents{"Hood"}   = [
-  "GreaseFilterMaxSaturationNearlyReached",
-  "GreaseFilterMaxSaturationReached"
-];
+$HomeConnect_DeviceEvents{"Hood"}   = ["GreaseFilterMaxSaturationNearlyReached", "GreaseFilterMaxSaturationReached" ];
 $HomeConnect_DeviceTrans_DE{"Hood"} = {
   "Lighting"            => "Beleuchtung",
   "LightingBrightness"  => "Helligkeit",
@@ -248,8 +244,7 @@ $HomeConnect_DeviceTrans_DE{"FridgeFreezer"} = {};
 $HomeConnect_DeviceSettings{"Washer"} = [ "ChildLock", "PowerState" ];
 $HomeConnect_DevicePrefix{"Washer"}   = "LaundryCare.Washer";
 $HomeConnect_DevicePowerOff{"Washer"} = "PowerOff";
-$HomeConnect_DeviceEvents{"Washer"} =
-  [ "IDos1FillLevelPoor", "IDos2FillLevelPoor" ];
+$HomeConnect_DeviceEvents{"Washer"} = [ "IDos1FillLevelPoor", "IDos2FillLevelPoor" ];
 $HomeConnect_DeviceTrans_DE{"Washer"} = {
   "Cotton"                => "Baumwolle",
   "Cotton.Eco4060"        => "Baumwolle.Eco5060",
@@ -430,8 +425,7 @@ sub HomeConnect_Define($$) {
   my ( $hash, $def ) = @_;
   my @a = split( "[ \t][ \t]*", $def );
 
-  my $u =
-"[HomeConnect_Define] wrong syntax: define <dev-name> HomeConnect <conn-name> <haId> to add appliances";
+  my $u = "[HomeConnect_Define] wrong syntax: define <dev-name> HomeConnect <conn-name> <haId> to add appliances";
 
   return $u if ( int(@a) < 4 );
 
@@ -740,8 +734,7 @@ sub HomeConnect_Set($@) {
 
 	#-- transform AlarmClock setting into AlarmClock command
 	if ( $availableSets =~ /([a-zA-Z\.]*)AlarmClock/ ) {
-	  $availableSets =~
-		s/$1AlarmClock/AlarmRelative:time AlarmEndTime:time AlarmCancel:noArg/;
+	  $availableSets =~ s/$1AlarmClock/AlarmRelative:time AlarmEndTime:time AlarmCancel:noArg/;
 	}
 
 	#-- SabbathMode setting does not imply that it may be set. Leave out for now
@@ -809,15 +802,11 @@ sub HomeConnect_Set($@) {
 	HomeConnect_ReadingsVal( $hash, "BSH.Common.Root.SelectedProgram", "" );
   my $remoteStartAllowed = HomeConnect_ReadingsVal( $hash,
 	"BSH.Common.Status.RemoteControlStartAllowed", "0" );
-  my $operationState =
-	HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.OperationState", "" );
-  my $powerState =
-	HomeConnect_ReadingsVal( $hash, "BSH.Common.Setting.PowerState", "" );
-  my $powerOff =
-	( ( $powerState =~ /Off/ ) || ( $operationState =~ /Inactive/ ) );
+  my $operationState = HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.OperationState", "" );
+  my $powerState = HomeConnect_ReadingsVal( $hash, "BSH.Common.Setting.PowerState", "" );
+  my $powerOff = ( ( $powerState =~ /Off/ ) || ( $operationState =~ /Inactive/ ) );
   my $pgmRunning = $operationState =~ /((Active)|(DelayedStart)|(Run)|(Pause))/;
-  my $doorState =
-	HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.DoorState", "" );
+  my $doorState = HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.DoorState", "" );
   my $doorOpen = ( $doorState =~ /Open/ );
 
   #-- doit !
@@ -882,8 +871,7 @@ sub HomeConnect_Set($@) {
 	#  if (!$powerOn);
 	return "[HomeConnect_Set] $name: a program is already running"
 	  if ($pgmRunning);
-	return
-"[HomeConnect_Set] $name: please enable remote start on your appliance to start a program"
+	return "[HomeConnect_Set] $name: please enable remote start on your appliance to start a program"
 	  if ( !$remoteStartAllowed );
 	return "[HomeConnect_Set] $name: cannot start, door open"
 	  if ($doorOpen);
@@ -959,15 +947,10 @@ sub HomeConnect_Set($@) {
 
 	my $data = {
 	  callback => \&HomeConnect_Response,
-	  uri      =>
-"/api/homeappliances/$haId/programs/$choice/options/$optionPrefix$command",
+	  uri      => "/api/homeappliances/$haId/programs/$choice/options/$optionPrefix$command",
 	  data => $json
 	};
-	Log3 $name, 1,
-		"[HomeConnect_Set] changing option with uri "
-	  . $data->{uri}
-	  . " and data "
-	  . $data->{data};
+	Log3 $name, 1, "[HomeConnect_Set] changing option with uri " . $data->{uri} . " and data " . $data->{data};
 	HomeConnectConnection_request( $hash, $data );
 
 	#-- set settings -----------------------------------------------------
@@ -981,8 +964,7 @@ sub HomeConnect_Set($@) {
 
 	#-- enumerated type
 	if ( !looks_like_number($setval) && !defined($setunit) ) {
-	  $setval =
-		$hash->{data}->{settings}->{$command}->[1] . "." . $setval;
+	  $setval =	$hash->{data}->{settings}->{$command}->[1] . "." . $setval;
 	  $setval = "\"$setval\"";
 
 	  #-- boolean type
@@ -992,8 +974,7 @@ sub HomeConnect_Set($@) {
 	}
 	my $newreading = $setval;
 	$newreading .= " " . $setunit if ( defined $setunit );
-	HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Setting." . $command,
-	  $newreading, 1 );
+	HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Setting." . $command, $newreading, 1 );
 
 	#-- doit
 	my $json =
@@ -1045,15 +1026,9 @@ sub HomeConnect_Set($@) {
 
 	#-- make sure that after selecting also GetProgramOptions is called
 	$HC_delayed_PS = 1;
-	HomeConnect_readingsSingleUpdate( $hash,
-	  "BSH.Common.Status.SelectedProgram",
-	  $program, 1 );
+	#HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Status.SelectedProgram", $program, 1 );
 
-	Log3 $name, 1,
-		"[HomeConnect] selecting program $program with uri "
-	  . $data->{uri}
-	  . " and data "
-	  . $data->{data};
+	Log3 $name, 1, "[HomeConnect] selecting program $program with uri " . $data->{uri} . " and data " . $data->{data};
 	HomeConnectConnection_request( $hash, $data );
   }
 }
@@ -1076,8 +1051,7 @@ sub HomeConnect_Get($@) {
   if ( defined($settings) && $type !~ /FridgeFreezer/ ) {
 	$gets .= " Programs:noArg ProgramOptions:noArg";
   }
-  return "[HomeConnect_Get] $name: with unknown argument $cmd, choose one of "
-	. $gets
+  return "[HomeConnect_Get] $name: with unknown argument $cmd, choose one of " . $gets
 	if ( $cmd eq "?" );
 
   #-- Programs ------------------------------------------
@@ -1116,8 +1090,7 @@ sub HomeConnect_PowerState($$) {
 	return "[HomeConnect_PowerState] $name: called with wrong argument $target";
   }
   else {
-	Log3 $name, 1,
-"[HomeConnect_PowerState] $name: setting PowerState->$target while OperationState=$operationState and PowerState=$powerState";
+	Log3 $name, 1, "[HomeConnect_PowerState] $name: setting PowerState->$target while OperationState=$operationState and PowerState=$powerState";
   }
 
   #-- send the update
@@ -1257,11 +1230,9 @@ sub HomeConnect_delayTimer($$$) {
 	$secs  = $thour * 3600 + 60 * $tmin;
   }
   else {
-	return
-"[HomeConnect_delayTimer] $name: error, input value $value is not a time spec";
+	return "[HomeConnect_delayTimer] $name: error, input value $value is not a time spec";
   }
-  Log3 $name, 1,
-	"[HomeConnect_delayTimer] $name: requested Delay $secs ($thour:$tmin)";
+  Log3 $name, 1, "[HomeConnect_delayTimer] $name: requested Delay $secs ($thour:$tmin)";
 
   #-- how long does the selected program run
   my $delta;
@@ -1272,14 +1243,16 @@ sub HomeConnect_delayTimer($$$) {
 
   #- device has option StartInRelative
   if ($delstart) {
-	$delta = HomeConnect_ReadingsVal( $hash,
-	  "BSH.Common.Option.RemainingProgramTime", 0 );
+	$delta = HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.RemainingProgramTime", 0 );
 	$delta =~ s/\D+//g;    #strip " seconds"
 						   #-- device has option FinishInRelative
   }
   elsif ($delfin) {
-	$delta =
-	  HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.FinishInRelative", 0 );
+	$delta = HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.FinishInRelative", 0 );
+	if ($delta eq "0") {
+	#Device might have estimated program time instead
+		$delta = HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.EstimatedTotalProgramTime", 0 );
+	}
 	$delta =~ s/\D+//g;    #strip " seconds"
   }
   else {
@@ -1288,7 +1261,7 @@ sub HomeConnect_delayTimer($$$) {
   $delta = 0 if !looks_like_number($delta);
 
   Log3 $name, 1, "[HomeConnect_delayTimer] $name: program time is $delta";
-  if ( $delta == 0 ) {
+  if ( $delta <= 60 ) {
 	return "[HomeConnect_delayTimer] $name: error, no program seleced";
   }
 
@@ -1339,26 +1312,23 @@ sub HomeConnect_delayTimer($$$) {
   }
   $starttime = sprintf( "%d:%02d", $starthour, $startmin );
   $endtime   = sprintf( "%d:%02d", $endhour,   $endmin );
+  print "Now: $hour:$min\n";
+  print "Starttime: $starttime\n";
+  print "Endtime: $endtime\n";
+  print "StartRel: $startinrelative\n";
+  print "EndRel: $endinrelative\n";
 
   #-- device has option StartInRelative
   if ($delstart) {
 	my $h = int( $startinrelative / 3600 );
 	my $m = ceil( ( $startinrelative - 3600 * $h ) / 60 );
 	readingsBeginUpdate($hash);
-	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.StartInRelative",
-	  $startinrelative );
-	HomeConnect_readingsBulkUpdate(
-	  $hash,
-	  "BSH.Common.Option.StartInRelativeHHMM",
-	  sprintf( "%d:%02d", $h, $m )
-	);
-	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.StartAtHHMM",
-	  $starttime );
-	HomeConnect_readingsBulkUpdate( $hash,
-	  "BSH.Common.Option.FinishAtHHMM", $endtime );
+	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.StartInRelative", $startinrelative );
+	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.StartInRelativeHHMM", sprintf( "%d:%02d", $h, $m ) );
+	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.StartAtHHMM", $starttime );
+	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.FinishAtHHMM", $endtime );
 	readingsEndUpdate( $hash, 1 );
-	Log3 $name, 1,
-	  "[HomeConnect_delayTimer] $name: startInRelative set to $startinrelative";
+	Log3 $name, 1, "[HomeConnect_delayTimer] $name: startInRelative set to $startinrelative";
 
 	#-- device has option FinishInRelative
   }
@@ -1366,18 +1336,11 @@ sub HomeConnect_delayTimer($$$) {
 	my $h = int( $endinrelative / 3600 );
 	my $m = ceil( ( $endinrelative - 3600 * $h ) / 60 );
 	readingsBeginUpdate($hash);
-	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.FinishInRelative",
-	  $endinrelative );
-	HomeConnect_readingsBulkUpdate(
-	  $hash,
-	  "BSH.Common.Option.FinishInRelativeHHMM",
-	  sprintf( "%d:%02d", $h, $m )
-	);
-	HomeConnect_readingsBulkUpdate( $hash,
-	  "BSH.Common.Option.FinishAtHHMM", $endtime );
+	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.FinishInRelative", $endinrelative );
+	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.FinishInRelativeHHMM", sprintf( "%d:%02d", $h, $m ) );
+	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.FinishAtHHMM", $endtime );
 	readingsEndUpdate( $hash, 1 );
-	Log3 $name, 1,
-	  "[HomeConnect_delayTimer] $name: finishInRelative set to $endinrelative";
+	Log3 $name, 1, "[HomeConnect_delayTimer] $name: finishInRelative set to $endinrelative";
   }
 }
 
@@ -1422,8 +1385,7 @@ sub HomeConnect_startProgram($) {
 
   my $programs = $hash->{programs};
   if ( !defined($programs) || $programs eq "" ) {
-	$ret =
-	  "[HomeConnect_startProgram] $name: Cannot start, list of programs empty";
+	$ret = "[HomeConnect_startProgram] $name: Cannot start, list of programs empty";
 	Log3 $name, 1, $ret;
 	return $ret;
   }
@@ -1435,8 +1397,7 @@ sub HomeConnect_startProgram($) {
   $program =~ s/\s$//;
 
   if ( $program eq "" ) {
-	$program =
-	  HomeConnect_ReadingsVal( $hash, "BSH.Common.Root.SelectedProgram",
+	$program = HomeConnect_ReadingsVal( $hash, "BSH.Common.Root.SelectedProgram",
 	  undef );
   }
 
@@ -1519,11 +1480,7 @@ sub HomeConnect_startProgram($) {
 	data     =>
 	  "{\"data\":{\"key\":\"$programPrefix$program\",\"options\":[$optdata]}}"
   };
-  Log3 $name, 1,
-	  "[HomeConnect] $name: start program $program with uri "
-	. $data->{uri}
-	. " and data "
-	. $data->{data};
+  Log3 $name, 1, "[HomeConnect] $name: start program $program with uri " . $data->{uri} . " and data " . $data->{data};
   HomeConnectConnection_request( $hash, $data );
 }
 
@@ -1535,17 +1492,9 @@ sub HomeConnect_pauseProgram($) {
   #-- submit update
   my $data = {
 	callback => \&HomeConnect_Response,
-	uri      => "/api/homeappliances/"
-	  . $hash->{haId}
-	  . "/commands/BSH.Common.Command.PauseProgram",
-	data =>
-"{\"data\":{\"key\":\"BSH.Common.Command.PauseProgram\",\"value\": true } }"
-  };
-  Log3 $name, 1,
-	  "[HomeConnect] $name: pause program with uri "
-	. $data->{uri}
-	. " and data "
-	. $data->{data};
+	uri		=> "/api/homeappliances/" . $hash->{haId} . "/commands/BSH.Common.Command.PauseProgram",
+	data 	=> "{\"data\":{\"key\":\"BSH.Common.Command.PauseProgram\",\"value\": true } }" };
+  Log3 $name, 1, "[HomeConnect] $name: pause program with uri " . $data->{uri} . " and data " . $data->{data};
   HomeConnectConnection_request( $hash, $data );
 }
 
@@ -1556,16 +1505,10 @@ sub HomeConnect_resumeProgram($) {
   #-- submit update
   my $data = {
 	callback => \&HomeConnect_Response,
-	uri      => "/api/homeappliances/"
-	  . $hash->{haId}
-	  . "/commands/BSH.Common.Command.ResumeProgram",
+	uri      => "/api/homeappliances/" . $hash->{haId} . "/commands/BSH.Common.Command.ResumeProgram",
 	data => "{\"data\":{\"key\":\"BSH.Common.Command.ResumeProgram\",\"value\": true}}"
   };
-  Log3 $name, 1,
-	  "[HomeConnect] $name: resume program with uri "
-	. $data->{uri}
-	. " and data "
-	. $data->{data};
+  Log3 $name, 1, "[HomeConnect] $name: resume program with uri " . $data->{uri} . " and data " . $data->{data};
   HomeConnectConnection_request( $hash, $data );
 }
 
@@ -1595,13 +1538,11 @@ sub HomeConnect_Timer {
 
 	  # first try
 	  HomeConnect_ConnectEventChannel($hash);
-	  InternalTimer( gettimeofday() + $updateTimer,
-		"HomeConnect_Timer", $hash, 0 );
+	  InternalTimer( gettimeofday() + $updateTimer, "HomeConnect_Timer", $hash, 0 );
 	}
 	else {
 	  # add an extra wait time
-	  InternalTimer( gettimeofday() + ( ($retryCounter) * 300 ),
-		"HomeConnect_WaitTimer", $hash, 0 );
+	  InternalTimer( gettimeofday() + ( ($retryCounter) * 300 ), "HomeConnect_WaitTimer", $hash, 0 );
 	}
 	$retryCounter++;
 	$hash->{retrycounter} = $retryCounter;
@@ -1631,8 +1572,6 @@ sub HomeConnect_WaitTimer {
   }
   InternalTimer( gettimeofday() + $updateTimer, "HomeConnect_Timer", $hash, 0 );
 
-  #-- update debug setting
-  #$HC_debug = AttrVal($name,"debug",0);
 }
 
 ###############################################################################
@@ -1665,14 +1604,12 @@ sub HomeConnect_ResponseGetSettings {
   return
 	if ( !defined $json );
 
-  Log3 $name, 5,
-	"[HomeConnect_ResponseGetSettings] $name: get settings response $json";
+  Log3 $name, 5, "[HomeConnect_ResponseGetSettings] $name: get settings response $json";
 
   my $JSON  = JSON->new->utf8(0)->allow_nonref;
   my $jhash = eval { $JSON->decode($json) };
   if ($@) {
-	$msg =
-"[HomeConnect_ResponseGetSettings] $name: JSON error requesting settings: $@";
+	$msg = "[HomeConnect_ResponseGetSettings] $name: JSON error requesting settings: $@";
 	readingsSingleUpdate( $hash, "lastErr", $@, 0 );
 	Log3 $name, 1, $msg;
 	return $msg;
@@ -1693,8 +1630,7 @@ sub HomeConnect_ResponseGetSettings {
 #This does not work - we would need to translate the array into something that looks like JSON (value=> , key=>) with numerical array indexes
 #Setting to undef to the loop will exit right away and skip the settings for devices that do not answer (as old Washers)
 	$jhash->{data}->{settings} = undef; #\@{$HomeConnect_DeviceSettings{$type}};
-	Log3 $name, 1,
-"[HomeConnect_ResponseGetSettings] $name: get settings failed, using default stuff for type $type";
+	Log3 $name, 1, "[HomeConnect_ResponseGetSettings] $name: get settings failed, using default stuff for type $type";
   }
 
   #-- put device dependent data into hash
@@ -1744,8 +1680,7 @@ sub HomeConnect_ResponseGetSettings {
 	my $unit = $setsline->{unit};
 
 	if ( $keypref !~ /((BSH.Common.Setting\.)|($settingsPrefix))/ ) {
-	  Log3 $name, 1,
-"[HomeConnect_ResponseGetSettings] $name: strange prefix $1 found in $keypref";
+	  Log3 $name, 1, "[HomeConnect_ResponseGetSettings] $name: strange prefix $1 found in $keypref";
 	}
 
 	#-- collect
@@ -1761,8 +1696,7 @@ sub HomeConnect_ResponseGetSettings {
 
 	#Still put all received settings into readings
 	HomeConnect_readingsBulkUpdate( $hash, $keypref, $value );
-	Log3 $name, 4,
-"[HomeConnect_ResponseGetSettings] $name: updating setting $key to $value";
+	Log3 $name, 4, "[HomeConnect_ResponseGetSettings] $name: updating setting $key to $value";
   }
   readingsEndUpdate( $hash, 1 );
 
@@ -1786,17 +1720,6 @@ sub HomeConnect_GetPrograms {
   my $name = $hash->{NAME};
   my $msg;
 
-#Remove check for power - many new appliances return a list anyway and for older ones we catch the error
-
-#-- check for power
-#my $powerState = ReadingsVal($name,$settingPrefix."PowerState","");
-#$powerState =~ s/^\s+|\s+$//g;
-#if( $powerState =~ /(Inactive)|(Off)|(Offline)/){
-#  $msg = "[HomeConnect_GetPrograms] $name: device in PowerState $powerState, cannot determine programs";
-#  Log3 $name,1,$msg;
-#  return $msg;
-#}
-
 #-- we do not get a list of programs if a program is active, so we just use the active program name
   my $operationState =
 	ReadingsVal( $name, "BSH.Common.Status.OperationState", "" );
@@ -1804,14 +1727,12 @@ sub HomeConnect_GetPrograms {
   $activeProgram =~ s/^\s+|\s+$//g;
   if ( $operationState =~ /((Active)|(DelayedStart)|(Run))/ ) {
 	if ( $activeProgram eq "" ) {
-	  $msg =
-"[HomeConnect_GetPrograms] name: failure GetPrograms in OperationState=$operationState, but no ActiveProgram defined";
+	  $msg = "[HomeConnect_GetPrograms] name: failure GetPrograms in OperationState=$operationState, but no ActiveProgram defined";
 	  Log3 $name, 1, $msg;
 	  return $msg;
 	}
 	else {
-	  $msg =
-"[HomeConnect_GetPrograms] name: failure GetPrograms in OperationState=$operationState of ActiveProgram $activeProgram";
+	  $msg = "[HomeConnect_GetPrograms] name: failure GetPrograms in OperationState=$operationState of ActiveProgram $activeProgram";
 	  Log3 $name, 1, $msg;
 	}
   }
@@ -1823,8 +1744,7 @@ sub HomeConnect_GetPrograms {
   };
   HomeConnectConnection_request( $hash, $data );
 
-  Log3 $name, 5, "[HomeConnect_GetPrograms] $name: getting programs with uri "
-	. $data->{uri};
+  Log3 $name, 5, "[HomeConnect_GetPrograms] $name: getting programs with uri " . $data->{uri};
 
 }
 
@@ -1842,15 +1762,13 @@ sub HomeConnect_ResponseGetPrograms {
   return
 	if ( !defined $json );
 
-  Log3 $name, 5,
-	"[HomeConnect_ResponseGetPrograms] $name: get programs response $json";
+  Log3 $name, 5, "[HomeConnect_ResponseGetPrograms] $name: get programs response $json";
 
   #-- response from device
   my $JSON  = JSON->new->utf8(0)->allow_nonref;
   my $jhash = eval { $JSON->decode($json) };
   if ($@) {
-	$msg =
-"[HomeConnect_ResponseGetPrograms] $name: JSON error requesting programs: $@";
+	$msg = "[HomeConnect_ResponseGetPrograms] $name: JSON error requesting programs: $@";
 	Log3 $name, 1, $msg;
 	readingsSingleUpdate( $hash, "lastErr", $@, 0 );
 	return $msg;
@@ -1906,15 +1824,6 @@ sub HomeConnect_GetProgramOptions {
   #-- start the processing
   my $programPrefix = $hash->{prefix} . ".Program.";
 
-#-- check for power
-#my $powerState = HomeConnect_ReadingsVal($hash,"BSH.Common.Setting.PowerState","");
-#$powerState =~ s/^\s+|\s+$//g;
-#if( $powerState =~ /(Inactive)|(Standby)|(Off)|(Offline)/){
-#  $msg = "[HomeConnect_GetProgramOptions] $name: device in PowerState $powerState, cannot determine options";
-#  Log3 $name,1,$msg;
-#  return $msg;
-#}
-
   #-- first guess selected program
   my $program =
 	HomeConnect_ReadingsVal( $hash, "BSH.Common.Root.SelectedProgram", "" );
@@ -1957,9 +1866,7 @@ sub HomeConnect_GetProgramOptions {
   };
   HomeConnectConnection_request( $hash, $data );
 
-  Log3 $name, 5,
-	"[HomeConnect_GetProgramOptions] $name: getting options with uri "
-	. $data->{uri};
+  Log3 $name, 5, "[HomeConnect_GetProgramOptions] $name: getting options with uri " . $data->{uri};
 }
 
 ###############################################################################
@@ -1976,8 +1883,7 @@ sub HomeConnect_ResponseGetProgramOptions {
   return
 	if ( !defined $json );
 
-  Log3 $name, 5,
-"[HomeConnect_ResponseGetProgramOptions] $name: program options response $json";
+  Log3 $name, 5, "[HomeConnect_ResponseGetProgramOptions] $name: program options response $json";
 
   my $JSON  = JSON->new->utf8(0)->allow_nonref;
   my $jhash = eval { $JSON->decode($json) };
@@ -1991,8 +1897,7 @@ sub HomeConnect_ResponseGetProgramOptions {
 	if ( $jhash->{"error"} );
 
   #-- start the processing
-  my $program =
-	HomeConnect_ReadingsVal( $hash, "BSH.Common.Root.SelectedProgram", "" );
+  my $program = HomeConnect_ReadingsVal( $hash, "BSH.Common.Root.SelectedProgram", "" );
 
   #-- localoptions is the full data, options for overview, optshtml for HTML
   #   no change of readings at this stage
@@ -2049,6 +1954,7 @@ sub HomeConnect_ResponseGetProgramOptions {
 	  }
 	}
 
+	#TODO: make this a structured hash?
 	#-- collect
 	$localoptions{$key} = [
 
@@ -2115,33 +2021,25 @@ sub HomeConnect_checkState($) {
   $operationState = "Inactive"
 	if ( $powerState =~ /Off/ && $operationState =~ /Ready/ );
 
-  my $startInRelative =
-	HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.StartInRelative", "" );
-  $startInRelative =~
-	s/BSH.*State.//g;    # These are seconds - never need this replacement
+  my $startInRelative = HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.StartInRelative", "" );
+  $startInRelative =~ s/BSH.*State.//g;    # These are seconds - never need this replacement
 
-  my $finishInRelative =
-	HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.FinishInRelative", "" );
-  $finishInRelative =~
-	s/BSH.*State.//g;    # These are seconds - never need this replacement
+  my $finishInRelative = HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.FinishInRelative", "" );
+  $finishInRelative =~ s/BSH.*State.//g;    # These are seconds - never need this replacement
 
-  my $aprogram =
-	HomeConnect_ReadingsVal( $hash, "BSH.Common.Root.ActiveProgram", "" );
-  my $sprogram =
-	HomeConnect_ReadingsVal( $hash, "BSH.Common.Root.SelectedProgram", "" );
+  my $aprogram = HomeConnect_ReadingsVal( $hash, "BSH.Common.Root.ActiveProgram", "" );
+  my $sprogram = HomeConnect_ReadingsVal( $hash, "BSH.Common.Root.SelectedProgram", "" );
 
   #-- active program missing
   if ( $aprogram eq "" && $operationState eq "Run" ) {
 	$aprogram = $sprogram;
-	HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Root.ActiveProgram",
-	  $aprogram, 1 );
+	HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Root.ActiveProgram", $aprogram, 1 );
   }
 
   #-- selected program missing
   if ( $sprogram eq "" && $operationState eq "Run" ) {
 	$sprogram = $aprogram;
-	HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Root.SelectedProgram",
-	  $sprogram, 1 );
+	HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Root.SelectedProgram", $sprogram, 1 );
   }
 
   #-- in running state both are identical now
@@ -2159,12 +2057,10 @@ sub HomeConnect_checkState($) {
   if ($HC_trans && defined $HomeConnect_DeviceTrans_DE{$hash->{type}}->{$program}) {
 	$program = $HomeConnect_DeviceTrans_DE{$hash->{type}}->{$program};
   }
-  my $pct =
-	HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.ProgramProgress", "0" );
+  my $pct =	HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.ProgramProgress", "0" );
   $pct =~ s/ \%.*//;
   $pct = $HC_tt->{"finished"} if ( $pct == 100 );
-  my $tim = HomeConnect_ReadingsVal( $hash,
-	"BSH.Common.Option.RemainingProgramTimeHHMM", "0:00" );
+  my $tim = HomeConnect_ReadingsVal( $hash,	"BSH.Common.Option.RemainingProgramTimeHHMM", "0:00" );
   $tim = $HC_tt->{"finished"} if ( $pct eq "0:00" );
   my $sta =
 	HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.StartAtHHMM", "0:00" );
@@ -2256,19 +2152,16 @@ sub HomeConnect_ResponseUpdateStatus {
   my $msg;
 
   if ( !defined $json ) {
-	Log3 $name, 1,
-	  "[HomeConnect_ResponseUpdateStatus] $name: no status available";
+	Log3 $name, 1, "[HomeConnect_ResponseUpdateStatus] $name: no status available";
 	return;
   }
 
-  Log3 $name, 5,
-	"[HomeConnect_ResponseUpdateStatus] $name: status response $json";
+  Log3 $name, 5, "[HomeConnect_ResponseUpdateStatus] $name: status response $json";
 
   my $JSON  = JSON->new->utf8(0)->allow_nonref;
   my $jhash = eval { $JSON->decode($json) };
   if ($@) {
-	$msg =
-"[HomeConnect_ResponseUpdateStatus] $name: JSON error requesting status: $@";
+	$msg = "[HomeConnect_ResponseUpdateStatus] $name: JSON error requesting status: $@";
 	readingsSingleUpdate( $hash, "lastErr", $@, 0 );
 	Log3 $name, 1, $msg;
 	return $msg;
@@ -2385,8 +2278,7 @@ sub HomeConnect_ResponseCheckProgram {
 	  }
 	  my $oldval =
 		HomeConnect_ReadingsVal( $hash, $keypref, "" );
-	  Log3 $name, 1,
-		  "[HomeConnect_ResponseCheckProgram] $name: key $keypref has current value $oldval and new value $pref $val";
+	  Log3 $name, 1, "[HomeConnect_ResponseCheckProgram] $name: key $keypref has current value $oldval and new value $pref $val";
 	}
   }
   readingsEndUpdate( $hash, 1 );
@@ -2416,8 +2308,7 @@ sub HomeConnect_ConnectEventChannel {
 	callback    => \&HomeConnect_HttpConnected
   };
 
-  Log3 $name, 5,
-	"[HomeConnect_ConnectEventChannel] $name: connecting to event channel";
+  Log3 $name, 5, "[HomeConnect_ConnectEventChannel] $name: connecting to event channel";
 
   HttpUtils_NonblockingGet($param);
 }
@@ -2466,15 +2357,13 @@ sub HomeConnect_HttpConnected {
   }
   $hdr .= "\r\n";
 
-  Log3 $hash->{NAME}, 5,
-	"[HomeConnect_HttpConnected] $name: sending headers to event channel: $hdr";
+  Log3 $hash->{NAME}, 5, "[HomeConnect_HttpConnected] $name: sending headers to event channel: $hdr";
 
   syswrite $param->{conn}, $hdr;
   $hash->{conn}                = $param->{conn};
   $hash->{eventChannelTimeout} = time();
 
-  Log3 $hash->{NAME}, 5,
-	"[HomeConnect_HttpConnected] $name: connected to event channel";
+  Log3 $hash->{NAME}, 5, "[HomeConnect_HttpConnected] $name: connected to event channel";
 
   #-- the server connection is left open to receive new events
 }
@@ -2492,8 +2381,7 @@ sub HomeConnect_CloseEventChannel($) {
   if ( defined $hash->{conn} ) {
 	$hash->{conn}->close();
 	delete( $hash->{conn} );
-	Log3 $name, 1,
-	  "[HomeConnect_CloseEventChannel] $name: disconnected from event channel";
+	Log3 $name, 1, "[HomeConnect_CloseEventChannel] $name: disconnected from event channel";
   }
 }
 
@@ -2511,8 +2399,7 @@ sub HomeConnect_ReadEventChannel($) {
   my $JSON = JSON->new->utf8(0)->allow_nonref;
 
   if ( !defined $hash->{conn} ) {
-	Log3 $name, 5,
-	  "[HomeConnect_ReadEventChannel] $name: event channel is not connected";
+	Log3 $name, 5, "[HomeConnect_ReadEventChannel] $name: event channel is not connected";
 	return undef;
   }
 
@@ -2523,8 +2410,7 @@ sub HomeConnect_ReadEventChannel($) {
   if ( defined $hash->{eventChannelTimeout}
 	&& ( time() - $hash->{eventChannelTimeout} ) > 140 )
   {
-	Log3 $name, 2,
-"[HomeConnect_ReadEventChannel] $name: event channel timeout, two keep alive messages missing";
+	Log3 $name, 2, "[HomeConnect_ReadEventChannel] $name: event channel timeout, two keep alive messages missing";
 	HomeConnect_CloseEventChannel($hash);
 	return undef;
   }
@@ -2548,8 +2434,7 @@ sub HomeConnect_ReadEventChannel($) {
 	Log3 $name, 5, "[HomeConnect_ReadEventChannel] $name: event channel searching for data, fileno:\"$tmp\", nfound:\"$nfound\", loopCounter:\"$count\"";
 
 	if ( $nfound < 0 ) {
-	  Log3 $name, 2,
-		"[HomeConnect_ReadEventChannel] $name: event channel timeout/error: $!";
+	  Log3 $name, 2, "[HomeConnect_ReadEventChannel] $name: event channel timeout/error: $!";
 	  HomeConnect_CloseEventChannel($hash);
 	  return undef;
 	}
@@ -2560,8 +2445,7 @@ sub HomeConnect_ReadEventChannel($) {
 	#--
 	my $len = sysread( $hash->{conn}, $inputbuf, 32768 );
 
-	Log3 $name, 5,
-"[HomeConnect_ReadEventChannel] $name: event channel len:\"$len\", received:\"$inputbuf\"";
+	Log3 $name, 5, "[HomeConnect_ReadEventChannel] $name: event channel len:\"$len\", received:\"$inputbuf\"";
 
 	#-- check if something was actually read
 	if ( !defined($len)
@@ -2569,8 +2453,7 @@ sub HomeConnect_ReadEventChannel($) {
 	  || !defined($inputbuf)
 	  || length($inputbuf) == 0 )
 	{
-	  Log3 $name, 5,
-"[HomeConnect_ReadEventChannel] $name: event channel read failed, len:\"$len\", received:\"$inputbuf\"";
+	  Log3 $name, 5, "[HomeConnect_ReadEventChannel] $name: event channel read failed, len:\"$len\", received:\"$inputbuf\"";
 	  HomeConnect_CloseEventChannel($hash);
 	  return undef;
 	}
@@ -2597,8 +2480,7 @@ sub HomeConnect_ReadEventChannel($) {
 	  }
 	}
 	elsif ( $json and $event =~ /NOTIFY|STATUS|EVENT/ ) {
-	  Log3 $name, 5,
-		"[HomeConnect_ReadEventChannel] $name: event $event data: $json";
+	  Log3 $name, 5, "[HomeConnect_ReadEventChannel] $name: event $event data: $json";
 	  my $jhash = eval { $JSON->decode($json) };
 
 	  if ($@) {
@@ -2619,8 +2501,7 @@ sub HomeConnect_ReadEventChannel($) {
 		my $unit = $item->{unit};
 		$unit = "" if ( !defined($unit) );
 
-		HomeConnect_readingsBulkUpdate( $hash, $key,
-		  $value . ( ( defined $unit ) ? " " . $unit : "" ) );
+		HomeConnect_readingsBulkUpdate( $hash, $key, $value . ( ( defined $unit ) ? " " . $unit : "" ) );
 		Log3 $name, 4, "[HomeConnect_ReadEventChannel] $name: $key = $value";
 
 #Log3 $name, 1, "[HomeConnect_ReadEventChannel] $name: $key = $value"
@@ -2648,8 +2529,7 @@ sub HomeConnect_ReadEventChannel($) {
 		  my $tim1 = sprintf( "%d:%02d", $h, $m );
 
 		  #-- hijacking the prefix although not authorized
-		  HomeConnect_readingsBulkUpdate( $hash,
-			"BSH.Common.Option.RemainingProgramTimeHHMM", $tim1 );
+		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.RemainingProgramTimeHHMM", $tim1 );
 		  $checkstate = 1;
 		}
 		elsif ( $key =~ /StartInRelative/ ) {
@@ -2660,20 +2540,17 @@ sub HomeConnect_ReadEventChannel($) {
 		  #-- determine start and end
 		  my ( $startmin, $starthour ) =
 			( localtime( time + $value ) )[ 1, 2 ];
-		  my $delta =
-			ReadingsNum( $name, "BSH.Common.Option.RemainingProgramTime", 0 );
+		  my $delta = HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.RemainingProgramTime", 0 );
+		  #TODO: test number
 		  my ( $endmin, $endhour ) =
 			( localtime( time + $value + $delta ) )[ 1, 2 ];
 		  my $tim3 = sprintf( "%d:%02d", $starthour, $startmin );
 		  my $tim4 = sprintf( "%d:%02d", $endhour,   $endmin );
 
 		  #-- hijacking the prefix although not authorized
-		  HomeConnect_readingsBulkUpdate( $hash,
-			"BSH.Common.Option.StartInRelativeHHMM", $tim2 );
-		  HomeConnect_readingsBulkUpdate( $hash,
-			"BSH.Common.Option.StartAtHHMM", $tim3 );
-		  HomeConnect_readingsBulkUpdate( $hash,
-			"BSH.Common.Option.StartToHHMM", $tim4 );
+		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.StartInRelativeHHMM", $tim2 );
+		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.StartAtHHMM", $tim3 );
+		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.StartToHHMM", $tim4 );
 		}
 		elsif ( $key =~ /FinishInRelative/ ) {
 		  my $h    = int( $value / 3600 );
@@ -2690,12 +2567,10 @@ sub HomeConnect_ReadEventChannel($) {
 		  my $tim4 = sprintf( "%d:%02d", $endhour, $endmin );
 
 		  #-- hijacking the prefix although not authorized
-		  HomeConnect_readingsBulkUpdate( $hash,
-			"BSH.Common.Option.FinishInRelativeHHMM", $tim2 );
+		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.FinishInRelativeHHMM", $tim2 );
 
 		  #readingsBulkUpdate($hash, $optionPrefix."StartAtHHMM", $tim3);
-		  HomeConnect_readingsBulkUpdate( $hash,
-			"BSH.Common.Option.FinishAtHHMM", $tim4 );
+		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.FinishAtHHMM", $tim4 );
 		}
 		elsif ( $key =~ /AlarmClockElapsed/ ) {
 		  if ( $value =~ /Present/ ) {
@@ -2716,10 +2591,8 @@ sub HomeConnect_ReadEventChannel($) {
 		  my $tim6 = sprintf( "%d:%02d", $endhour, $endmin );
 
 		  #-- hijacking the prefix although not authorized
-		  HomeConnect_readingsBulkUpdate( $hash,
-			"BSH.Common.Option.AlarmClockHHMM", $tim5 );
-		  HomeConnect_readingsBulkUpdate( $hash,
-			"BSH.Common.Option.AlarmAtHHMM", $tim6 );
+		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.AlarmClockHHMM", $tim5 );
+		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.AlarmAtHHMM", $tim6 );
 		}
 		elsif ( $key =~ /(DoorState)|(OperationState)/ ) {
 		  $checkstate = 1;
@@ -2736,9 +2609,7 @@ sub HomeConnect_ReadEventChannel($) {
 	  readingsBulkUpdate( $hash, "state", $state )
 		if ( $hash->{STATE} ne $state );
 	  Log3 $name, 4, "[HomeConnect_ReadEventChannel] $name: disconnected $id";
-
-	  # call checkState???
-	  #HomeConnect_ClearProgramReadings($hash);
+	  $checkstate=1;
 	}
 	elsif ( $event eq "CONNECTED" ) {
 	  Log3 $name, 4, "[HomeConnect_ReadEventChannel] $name: connected $id";
@@ -2758,8 +2629,7 @@ sub HomeConnect_ReadEventChannel($) {
 
   #Update some status readings if requested
   HomeConnect_checkState($hash) if $checkstate;
-  Log3 $name, 5,
-	"[HomeConnect_ReadEventChannel] $name: event channel received no more data";
+  Log3 $name, 5, "[HomeConnect_ReadEventChannel] $name: event channel received no more data";
 }
 
 # Manipulate the Readings and Values according to the settings
@@ -2769,7 +2639,7 @@ sub HomeConnect_ReadEventChannel($) {
 sub HomeConnect_replaceReading($$) {
   my ( $hash, $value ) = @_;
   my $name          = $hash->{NAME};
-  my $HC_namePrefix = AttrVal( $name, "namePrefix", 1 );
+  my $HC_namePrefix = AttrVal( $name, "namePrefix", 0 );
   if ( $HC_namePrefix == 0 ) {
 	$value =~ s/BSH.Common.//;
 	my $programPrefix = $hash->{prefix} . "\.";
@@ -2781,7 +2651,7 @@ sub HomeConnect_replaceReading($$) {
 sub HomeConnect_replaceValue($$) {
   my ( $hash, $value ) = @_;
   my $name           = $hash->{NAME};
-  my $HC_valuePrefix = AttrVal( $name, "valuePrefix", 1 );
+  my $HC_valuePrefix = AttrVal( $name, "valuePrefix", 0 );
   if ( $HC_valuePrefix == 0 and $value =~ /\./ ) {
 	$value =~ /.*\.(.*)$/;
 	$value = $1;
@@ -2835,16 +2705,16 @@ sub HomeConnect_Attr(@) {
 1;
 
 =pod
+=item device
+=item summary Integration of Home Connect appliances (Siemens, Bosch)
+=item summary_DE Integration von Home Connect Geräten (Siemens, Bosch)
+
 =begin html
 
-D90740D7ECE446E7AC2EC5041FF0F5FD
-
-{my $v=ReadingsVal("SnapMaker","state","");my $f=ReadingsVal("SnapMaker","job_file_name","");$f=~s/.gcode//;"$v ".(($v eq "Printing")?$f." (". ReadingsVal("SnapMaker","progress_completion","")." %)":"")}
-
-<a name="HomeConnect"></a>
 <h3>HomeConnect</h3>
+<a id="HomeConnect"></a>
 <ul>
-  <a name="HomeConnect_define"></a>
+  <a id="HomeConnect-define"></a>
   <h4>Define</h4>
   <ul>
     <code>define &lt;name&gt; HomeConnect &lt;connection&gt; &lt;haId&gt;</code>
@@ -2856,39 +2726,115 @@ D90740D7ECE446E7AC2EC5041FF0F5FD
     <code>define Dishwasher HomeConnect hcconn SIEMENS-HCS02DWH1-83D908F0471F71</code><br>
 
     <br/>
-	Typically the Home Connect devices are created automatically by the scanDevices action in HomeConnectConnection.
+	Typically the Home Connect devices are created automatically by the scanDevices action in HomeConnectConnection.<br>
+	Note: <li>Not all commands will work with every device. As the interface is rather generic, it is impossible to find out what your device can actually do and how it will behave.
+	So this module will rather offer an option that does not work (you will get an error message in reading "lastErr" or by popup) than hiding options that could work.</li>
+	<li>Most commands are executed asynchronously, which means you will not see updated readings right away and won't get error messages displayed. Wait a bit and check the reading "lastErr" (mind the timestamp to avoid reacting on old errors)</li>
     <br/>
   </ul>
 
-  <a name="HomeConnect_Set"></a>
-  <b>Set</b>
+  <a name="HomeConnect-set"></a>
+  <h4>Set</h4>
   <ul>
-    <li>SelectProgram<br>
-      Select a program on the appliance. A program name must be given as first parameter. 
-      This prepares the appliance for a program start and presets the program options with sensible defaults.
-    <li>StartProgram<br>
-      Start a program on the appliance. The program currently selected on the appliance will be started by default.
-      A program name can be given as first parameter. The program will be started with specific options.
-      </li>
-    <li>StopProgram<br>
-      Stop the running program on the appliance.
-      </li>
-    <li>requestProgramOptions<br>
-      Read options for a specific appliance program and add them to Readings for later editing.
-      </li>
-    <li>requestSettings<br>
-      Read all settings available for the appliance and add them to Readings for later editing.
-      </li>
+	<li><b>set SelectedProgram &lt;Program Name&gt;</b><br>
+			<a id="HomeConnect-set-SelectedProgram"></a>
+			Select the program for the appliance taken out of a list of possible programs that have been retrieved earlier. Typically your device also needs to be powered on to make this work.<br>
+			If the list is empty it might need to be filled first with "get Programs", which might need the appliance to be switched on.<br>
+			</li>
+	<li><b>set StartProgram</b><br>
+			<a id="HomeConnect-set-StartProgram"></a>
+			Start the program that either has been selected by "set SelectedProgram" or was manually selected at the appliance.<br>
+			Note that to actually start the "Remote Start" has to be enabled (manually) at the appliance<br>
+			</li>
+	<li><b>set StopProgram</b><br>
+			<a id="HomeConnect-set-StopProgram"></a>
+			Stop (abort) a running program. Highly depends on the capabilities of the appliance if this is possible and how quickly it is done.<br>
+			</li>
+	<li><b>set PauseProgram</b><br>
+			<a id="HomeConnect-set-PauseProgram"></a>
+			Pause a running program. Not all appliances will support this. Resumed with "ResumeProgram".<br>
+			</li>
+	<li><b>set ResumeProgram</b><br>
+			<a id="HomeConnect-set-ResumeProgram"></a>
+			Resume a previously paused program.<br>
+			</li>
+	<li><b>set PowerOn</b><br>
+			<a id="HomeConnect-set-PowerOn"></a>
+			Switch an appliance on. Only supported by devices that do not get fully switched off.<br>
+			</li>			
+	<li><b>set PowerOff</b><br>
+			<a id="HomeConnect-set-PowerOff"></a>
+			Power off an appliance, if supported.<br>
+			</li>			
   </ul>
-  <br>
-
+  <h4>Further option settings</h4>
+  Further settings might appear after "Settings" or "ProgramOptions" get queried. These are created dynamically and it is impossible to document them all. Listing some special cases and ones known by the author here.<br>
+  <h3>General - supported by multiple devices</h3>
+  <ul>
+  	<li><b>set DelayEndTime &lt;HH:MM&gt; </b><br>
+			<a id="HomeConnect-set-DelayEndTime"></a>
+			If device supports "startInRelative" or "finishInRelative"<br>
+			</li>
+	<li><b>set DelayFinishAt &lt;HH:MM&gt; </b><br>
+			<a id="HomeConnect-set-DelayFinishAt"></a>
+			If device supports "startInRelative" or "finishInRelative"<br>
+	</li>
+	<li><b>set DelayRelative &lt;HH:MM&gt; </b><br>
+			<a id="HomeConnect-set-DelayRelative"></a>
+			If device supports "startInRelative" or "finishInRelative"<br>
+	</li>
+	<li><b>set DelayStartTime &lt;HH:MM&gt; </b><br>
+			<a id="HomeConnect-set-DelayStartTime"></a>
+			If device supports "startInRelative" or "finishInRelative"<br>
+	</li>
+  </ul>
+  <h3>Device specific</h3>
+  <ul>
+	<li><b>Dryer:</b> DryingTarget</li>
+	<li><b>Washer:</b> </li>
+	<li><b>Dishwasher:</b> </li>
+  </ul>
+  <a name="HomeConnect_Get"></a>
+  <h4>Get</h4>
+  <ul>
+	<li><b>get Settings</b><br>
+			<a id="HomeConnect-get-Settings"></a>
+			Retrieve the available general settings, e.g. things like "ChildLock". It is recommended that you device is turned on when your query this, though especially newer devices will also return data when switched off or in standby.<br>
+			</li>
+	<li><b>get Programs</b><br>
+			<a id="HomeConnect-get-Programs"></a>
+			Retrieve the list of available programs, e.g. things like "Eco50","Cotton" etc. It is recommended that you device is turned on when your query this, though especially newer devices will also return data when switched off or in standby.<br>
+			</li>
+	<li><b>get ProgramOptions</b><br>
+			<a id="HomeConnect-get-ProgramOptions"></a>
+			Retrieve the list of program specific options for the currently selected program. Your device should be switched on and set to the appropriate program to make this work properly.<br>
+			</li>
+  </ul>
   <a name="HomeConnect_Attr"></a>
   <h4>Attributes</h4>
   <ul>
-    <li><a name="updateTimer"><code>attr &lt;name&gt; updateTimer &lt;Integer&gt;</code></a>
-                <br />Interval for update checks, default is 10 seconds</li>
-    <li><a name="includePrefixes"><code>attr &lt;name&gt; includePrefixes &lt;[0,1]&gt;</code></a>
-                <br />If 1, all BSH prefixes will be carried along in all readings</li>
+	<li><b>updateTimer &lt;Integer&gt;</b><br>
+			<a id="HomeConnect-attr-updateTimer"></a>
+			Define how often checks are executed - default is 10 seconds.<br>
+			</li>
+	<li><b>namePrefix &lt;Integer&gt;</b><br>
+			<a id="HomeConnect-attr-namePrefix"></a>
+			The Home Connect interface uses pretty long and complicated names for it's settings, e.g. BSH.Common.Setting.PowerState.<br>
+			By setting this to 1 these prefixes are fully preserved and the readings created are equally long.<br>
+			If set to 0 (default) the module will cut away the "BSH.Common" to make this more readable. When communicating with Home Connect the module will internally continue to use the full name.<br>
+			</li>
+	<li><b>valuePrefix &lt;Integer&gt;</b><br>
+			<a id="HomeConnect-attr-valuePrefix"></a>
+			The Home Connect interface uses pretty long and complicated names for values settings, e.g. BSH.Common.EnumType.DoorState.Open.<br>
+			By setting this to 1 these prefixes are fully preserved and the values are displayed as such.<br>
+			If set to 0 (default) the module will cut away everything, but the actual value ("Open" in the example). When communicating with Home Connect the module will internally continue to use the full name.<br>
+			</li>
+	<li><b>translate &lt;Integer&gt;</b><br>
+			<a id="HomeConnect-attr-translate"></a>
+			This only applies to the detailed status readings "state1" and "state2".
+			If set to 1 (the default), the module will attempt to translate certain values and program names to German is the language "DE" is set in the "global" device.<br>
+			It does not affect how values are displayed in other readings.<br>
+			</li>
   </ul>
 </ul>
 
