@@ -615,7 +615,7 @@ sub HomeConnect_HandleError($$) {
 	$error = $jhash->{"error"}->{"description"};
 	Log3 $name, 1, "[HomeConnect_HandleError] $name: Error \"$error\""
 	  if $error;
-	readingsSingleUpdate( $hash, "lastErr", $error, 0 );
+	readingsSingleUpdate( $hash, "lastErr", $error, 1 );
 	if ( $error =~ /offline/ ) {
 
 	  #-- key SDK.Error.HomeAppliance.Connection.Initialization.Failed
@@ -1610,7 +1610,7 @@ sub HomeConnect_ResponseGetSettings {
   my $jhash = eval { $JSON->decode($json) };
   if ($@) {
 	$msg = "[HomeConnect_ResponseGetSettings] $name: JSON error requesting settings: $@";
-	readingsSingleUpdate( $hash, "lastErr", $@, 0 );
+	readingsSingleUpdate( $hash, "lastErr", $@, 1 );
 	Log3 $name, 1, $msg;
 	return $msg;
   }
@@ -1770,7 +1770,7 @@ sub HomeConnect_ResponseGetPrograms {
   if ($@) {
 	$msg = "[HomeConnect_ResponseGetPrograms] $name: JSON error requesting programs: $@";
 	Log3 $name, 1, $msg;
-	readingsSingleUpdate( $hash, "lastErr", $@, 0 );
+	readingsSingleUpdate( $hash, "lastErr", $@, 1 );
 	return $msg;
   }
 
@@ -1804,7 +1804,7 @@ sub HomeConnect_ResponseGetPrograms {
   }
   else {
 	$msg = "[HomeConnect_ResponseGetPrograms] $name: no programs found";
-	readingsSingleUpdate( $hash, "lastErr", "No programs found", 0 );
+	readingsSingleUpdate( $hash, "lastErr", "No programs found", 1 );
 	Log3 $name, 1, $msg;
 	return $msg;
   }
@@ -1838,8 +1838,7 @@ sub HomeConnect_GetProgramOptions {
 	#-- failure
 	if ( $program eq "" || $program eq "-" ) {
 	  $msg = "[HomeConnect_GetProgramOptions] $name: no program selected and no program active, cannot determine options";
-	  readingsSingleUpdate( $hash, "lastErr",
-		"No programs selected or active", 0 );
+	  readingsSingleUpdate( $hash, "lastErr", "No programs selected or active", 1 );
 	  Log3 $name, 1, $msg;
 	  return $msg;
 	}
@@ -2091,6 +2090,7 @@ sub HomeConnect_checkState($) {
 	$state  = lc $operationState;
 	$state1 = $trans;
 	$state2 = "-";
+	readingsSingleUpdate($hash,"lastErr","Error or action required",1);
   }
   if ( $operationState =~ /(Abort)|(Finished)/ ) {
 	$state  = "done";
@@ -2110,13 +2110,19 @@ sub HomeConnect_checkState($) {
 	$state2 = "-";
   }
 
-  $state1 = decode_utf8($state1);    # if !($unicodeEncoding);
-  $state2 = decode_utf8($state2);    # if !($unicodeEncoding);
-
+  #Correct special characters if using encoding=unicode
+  $state1 = decode_utf8($state1) if $unicodeEncoding;
+  $state2 = decode_utf8($state2) if $unicodeEncoding;
+  
   readingsBeginUpdate($hash);
+  my $errage=ReadingsAge($name,"lastErr",0);
+  #Clear lastErr if older than 30min to avoid confusion
+  if ($errage>1800) {
+	readingsBulkUpdate( $hash, "lastErr", "ok");
+  }
   readingsBulkUpdate( $hash, "state",   $state );
-  readingsBulkUpdate( $hash, "time",    $tim );
-  readingsBulkUpdate( $hash, "percent", $pct );
+  #readingsBulkUpdate( $hash, "time",    $tim );
+  readingsBulkUpdate( $hash, "progress", $pct );
   readingsBulkUpdate( $hash, "state1",  $state1 );
   readingsBulkUpdate( $hash, "state2",  $state2 );
   readingsEndUpdate( $hash, 1 );
@@ -2162,7 +2168,7 @@ sub HomeConnect_ResponseUpdateStatus {
   my $jhash = eval { $JSON->decode($json) };
   if ($@) {
 	$msg = "[HomeConnect_ResponseUpdateStatus] $name: JSON error requesting status: $@";
-	readingsSingleUpdate( $hash, "lastErr", $@, 0 );
+	readingsSingleUpdate( $hash, "lastErr", $@, 1 );
 	Log3 $name, 1, $msg;
 	return $msg;
   }
@@ -2461,7 +2467,6 @@ sub HomeConnect_ReadEventChannel($) {
 	#-- reset timeout
 	$hash->{eventChannelTimeout} = time();
 
-	readingsBeginUpdate($hash);
 	my ($event) = $inputbuf =~ /^event\:(.*)$/m;
 	my ($id)    = $inputbuf =~ /^id\:(.*)$/m;
 	my ($json)  = $inputbuf =~ /^data\:(.*)$/m;
@@ -2683,6 +2688,8 @@ sub HomeConnect_readingsSingleUpdate($$$$) {
 
 sub HomeConnect_ReadingsVal($$$) {
   my ( $hash, $reading, $default ) = @_;
+  #Safety to avoid FHEM crashing during development as original ReadingsVal has a name (not a hash) as first argument
+  return "error" if (ref($hash) ne "HASH");
   my $name = $hash->{NAME};
 
   my $nreading = HomeConnect_replaceReading( $hash, $reading );
