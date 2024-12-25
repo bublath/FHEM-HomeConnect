@@ -45,44 +45,8 @@ require 'HttpUtils.pm';
 ##############################################
 my $HCversion = "1.1beta";
 
-my %HC_table_EN = (
-  "ok"          => "OK",
-  "notok"       => "Not OK",
-  "at"          => "at",
-  "program"     => "program",
-  "active"      => "active",
-  "inactive"    => "inactive",
-  "offline"     => "offline",
-  "open"        => "open",
-  "closed"      => "closed",
-  "locked"      => "locked",
-  "still"       => "still",
-  "remaining"   => "remaining",
-  "whichis"     => "which is",
-  "endingat"    => "and ending at",
-  "remotestart" => "remote start",
-  "running"     => "running",
-  "inactiveC"   => "inactive",
-  "ready"       => "ready",
-  "delaystart"  => "delayed start of",
-  "delayend"    => "end at",
-  "pause"       => "pause",
-  "actionreq"   => "action required",
-  "finished"    => "finished",
-  "error"       => "error",              #state
-  "abort"       => "aborting",           #state
-  "standby"     => "standby",
-  "childlock"   => "child lock",
-  "door"        => "door",
-  "alarm"       => "alarm at",
-  "delayed"     => "delayed",            #state
-  "action"      => "action required",    #state
-  "done"        => "done",               #state
-  "idle"        => "idle",               #state
-  "door"        => "door"
-);
-
-my %HC_table_DE = (
+my %HC_table = (
+	"DE" => {
   "ok"          => "OK",
   "notok"       => "Nicht OK",
   "at"          => "um",
@@ -116,7 +80,48 @@ my %HC_table_DE = (
   "action"      => "Eingriff nötig",
   "done"        => "Fertig",
   "idle"        => "Bereit",
-  "door"        => "Tür"
+  "door"        => "Tür",
+  "on"			=> "An",
+  "off"			=> "Aus"
+	},
+	"EN" => {
+  "ok"          => "OK",
+  "notok"       => "Not OK",
+  "at"          => "at",
+  "program"     => "program",
+  "active"      => "active",
+  "inactive"    => "inactive",
+  "offline"     => "offline",
+  "open"        => "open",
+  "closed"      => "closed",
+  "locked"      => "locked",
+  "still"       => "still",
+  "remaining"   => "remaining",
+  "whichis"     => "which is",
+  "endingat"    => "and ending at",
+  "remotestart" => "remote start",
+  "running"     => "running",
+  "inactiveC"   => "inactive",
+  "ready"       => "ready",
+  "delaystart"  => "delayed start of",
+  "delayend"    => "end at",
+  "pause"       => "pause",
+  "actionreq"   => "action required",
+  "finished"    => "finished",
+  "error"       => "error",              #state
+  "abort"       => "aborting",           #state
+  "standby"     => "standby",
+  "childlock"   => "child lock",
+  "door"        => "door",
+  "alarm"       => "alarm at",
+  "delayed"     => "delayed",            #state
+  "action"      => "action required",    #state
+  "done"        => "done",               #state
+  "idle"        => "idle",               #state
+  "door"        => "door",
+  "on"			=> "on",
+  "off"			=> "off"
+	}
 );
 
 my %HomeConnect_Iconmap = (
@@ -370,8 +375,6 @@ $HomeConnect_DeviceEvents{"CleaningRobot"} =  [ "EmptyDustBoxAndCleanFilter", "R
 $HomeConnect_DeviceTrans_DE{"CleaningRobot"} = {};
 
 #-- some global parameters
-my $HC_tt;
-my $HC_trans=1;
 my $HC_delayed_PS;
 
 ###############################################################################
@@ -382,36 +385,19 @@ my $HC_delayed_PS;
 
 sub HomeConnect_Initialize($) {
   my ($hash) = @_;
-
   $hash->{SetFn}  = "HomeConnect_Set";
   $hash->{DefFn}  = "HomeConnect_Define";
   $hash->{AttrFn} = "HomeConnect_Attr";
+  $hash->{StateFn} = "HomeConnect_State";
+  $hash->{NotifyFn} = "HomeConnect_Notify";
   $hash->{GetFn}  = "HomeConnect_Get";
   $hash->{AttrList} =
 	  "disable:0,1 "
 	. "namePrefix:0,1 "
 	. "valuePrefix:0,1 "
 	. "updateTimer "
-	. "translate:0,1 "
-	.
-
-	#-- should be standard     "stateFormat " .
-	$readingFnAttributes;
-
-  if ( !defined($HC_tt) ) {
-
-	#-- readjust language
-	my $lang = AttrVal( "global", "language", "EN" );
-	my $trans = AttrVal ( $hash->{NAME}, "translate", 1);
-	if ( $lang eq "DE" and $trans == 1) {
-	  $HC_tt = \%HC_table_DE;
-	  $HC_trans=1;
-	}
-	else {
-	  $HC_tt = \%HC_table_EN;
-	  $HC_trans=0;
-	}
-  }
+	. "translate: "
+	. $readingFnAttributes;
   return;
 }
 
@@ -424,7 +410,7 @@ sub HomeConnect_Initialize($) {
 sub HomeConnect_Define($$) {
   my ( $hash, $def ) = @_;
   my @a = split( "[ \t][ \t]*", $def );
-
+  Log3 $hash->{NAME}, 1, "[HomeConnect_define] called";
   my $u = "[HomeConnect_Define] wrong syntax: define <dev-name> HomeConnect <conn-name> <haId> to add appliances";
 
   return $u if ( int(@a) < 4 );
@@ -438,21 +424,6 @@ sub HomeConnect_Define($$) {
   #-- Delay init if not yet connected - not working
   #return undef if(Value($hash->{hcconn}) ne "Logged in");
 
-  if ( !defined($HC_tt) ) {
-
-	#-- readjust language
-	my $lang = AttrVal( "global", "language", "EN" );
-	my $trans = AttrVal ( $hash->{NAME}, "translate", 1);
-	if ( $lang eq "DE" and $trans == 1) {
-	  $HC_tt = \%HC_table_DE;
-	  $HC_trans=1;
-	}
-	else {
-	  $HC_tt = \%HC_table_EN;
-	  $HC_trans=0;
-	}
-  }
-
   return HomeConnect_Init($hash);
 }
 
@@ -465,15 +436,61 @@ sub HomeConnect_Define($$) {
 sub HomeConnect_Init($) {
   my ($hash) = @_;
   my $name = $hash->{NAME};
+  Log3 $hash->{NAME}, 1, "[HomeConnect_Init] called";
 
-  #Log 1,"=================> $name Calling Init";
+  $hash->{helper}->{init}="start";
+  HomeConnect_CloseEventChannel($hash);
+  RemoveInternalTimer($hash);
+  InternalTimer( gettimeofday() + int(rand(5))+1, "HomeConnect_InitWatcher", $hash, 0 );
+  #Keep a counter to avoid potential endless loop
+  $hash->{helper}->{init_count}=0;
+  $hash->{helper}->{total_count}=0;
   #-- Read list of appliances, find my haId
-
   my $data = {
 	callback => \&HomeConnect_ResponseInit,
 	uri      => "/api/homeappliances"
   };
   HomeConnectConnection_request( $hash, $data );
+}
+
+sub HomeConnect_InitWatcher($) {
+  my ($hash) = @_;
+  my $name = $hash->{NAME};
+  my $state=$hash->{helper}->{init};
+  my $count=$hash->{helper}->{init_count};
+
+  print "Init Watch $name stage $state count $hash->{helper}->{init_count}\n";
+
+  # Call the initial asynchronous calls one by one to avoid issues, retry after 3 times
+  if ($state eq "start" and $count>3) {
+	HomeConnect_Init($hash);
+	$count=0;
+  } elsif ($state eq "init_done" or ($state eq "settings" and $count>3)) {
+	$hash->{helper}->{init}="settings";
+	HomeConnect_GetSettings($hash);
+	$count=0;
+	} elsif ($state eq "settings_done" or ($state eq "programs" and $count>3)) {
+	  HomeConnect_GetPrograms($hash);
+	  $hash->{helper}->{init}="programs";
+	  $count=0;
+	} elsif ($state eq "programs_done" or ($state eq "status" and $count>3)) {
+	  HomeConnect_UpdateStatus($hash);
+	  $hash->{helper}->{init}="status";
+	  $count=0;
+	}
+  $hash->{helper}->{init_count}=++$count;
+  $hash->{helper}->{total_count}++;
+  # Check updates more frequently
+  if ($state ne "status_done" and $hash->{helper}->{total_count}<10) {
+    print "$name continue init\n";
+    RemoveInternalTimer($hash);
+	InternalTimer( gettimeofday() + int(rand(5))+1, "HomeConnect_InitWatcher", $hash, 0 );
+  } else {
+	#Init finished or took to long
+    print "$name init done\n";
+    RemoveInternalTimer($hash);
+	HomeConnect_Timer($hash);
+  }
 }
 
 ###############################################################################
@@ -489,16 +506,14 @@ sub HomeConnect_ResponseInit {
   my $msg;
 
   if ( !defined $data ) {
-	return
-"[HomeConnect_ResponseInit] $name: failed to connect to HomeConnect API, see log for details";
+	return "[HomeConnect_ResponseInit] $name: failed to connect to HomeConnect API, see log for details";
   }
 
-  Log3 $name, 1, "[HomeConnect_ResponseInit] $name: init response $data";
+  Log3 $name, 5, "[HomeConnect_ResponseInit] $name: init response $data";
 
   my $appliances = eval { $JSON->decode($data) };
   if ($@) {
-	$msg =
-	  "[HomeConnect_ResponseInit] $name: JSON error requesting appliances: $@";
+	$msg = "[HomeConnect_ResponseInit] $name: JSON error requesting appliances: $@";
 	readingsSingleUpdate( $hash, "lastErr", $@, 1 );
 	Log3 $name, 1, $msg;
 	return $msg;
@@ -517,19 +532,15 @@ sub HomeConnect_ResponseInit {
 	  $hash->{connected} = $appliance->{connected};
 	  Log3 $name, 1, "[HomeConnect_ResponseInit] $name: defined as HomeConnect $hash->{type} $hash->{brand} $hash->{vib}";
 
-  #-- Really set the icon?
-  #my $icon = $HomeConnect_Iconmap{$appliance->{type}};
-  #$attr{$name}{icon} = $icon if (!defined $attr{$name}{icon} && defined $icon);
+	  my $icon = $HomeConnect_Iconmap{$appliance->{type}};
+	  $attr{$name}{icon} = $icon if (!defined $attr{$name}{icon} && defined $icon);
+	  $attr{$name}{stateFormat} = "state1 (state2)" if !defined $attr{$name}{stateFormat};
 
 	  $attr{$name}{alias} = $hash->{aliasname}
 		if ( !defined $attr{$name}{alias} && defined $hash->{aliasname} );
 
-	  HomeConnect_GetSettings($hash);
-	  HomeConnect_GetPrograms($hash);
-	  HomeConnect_UpdateStatus($hash);
-	  RemoveInternalTimer($hash);
-	  HomeConnect_CloseEventChannel($hash);
-	  HomeConnect_Timer($hash);
+	  $hash->{helper}->{init}="init_done";
+
 	  return;
 	}
   }
@@ -619,9 +630,7 @@ sub HomeConnect_HandleError($$) {
 	if ( $error =~ /offline/ ) {
 
 	  #-- key SDK.Error.HomeAppliance.Connection.Initialization.Failed
-	  HomeConnect_readingsSingleUpdate( $hash,
-		"BSH.Common.Status.OperationState",
-		"Offline", 1 );
+	  HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Status.OperationState", "Offline", 1 );
 	  $hash->{STATE} = "Offline";
 	  HomeConnect_checkState($hash);
 	}
@@ -655,15 +664,12 @@ sub HomeConnect_Set($@) {
   my $type = $hash->{type};
 
   my $opts = join @a;
-  Log3 $name, 4, "[HomeConnect_Set] $name: $opts";
 
 #--connect to Home Connect server, initialize status ------------------------------
   if ( $a[1] eq "init" ) {
-
-	#Start Init 60s delayed as it still might not be ready
-	return InternalTimer( gettimeofday() + 60, 'HomeConnect_Init', $hash );
-
-	#return HomeConnect_Init($hash);
+	Log3 $hash->{NAME}, 1, "[HomeConnect_Set] init called";  
+	InternalTimer( gettimeofday() + int(rand(10))+5, "HomeConnect_Init", $hash, 0 );
+	return;
   }
   return if !defined $hash->{prefix};    #Init not complete yet
 										 #-- update debug setting
@@ -829,8 +835,8 @@ sub HomeConnect_Set($@) {
   }
   elsif ( $command =~ /statusRequest/ ) {
 
-	#HomeConnect_UpdateStatus($hash);
-	HomeConnect_checkState($hash);
+	HomeConnect_UpdateStatus($hash);
+	#HomeConnect_checkState($hash);
   }
   elsif ( $command =~ /Power((On)|(Off)|(Standby))/ ) {
 	HomeConnect_PowerState( $hash, $1 );
@@ -927,8 +933,7 @@ sub HomeConnect_Set($@) {
 	$newreading .= " " . $optunit if ( defined $optunit );
 
 	#--- update reading
-	HomeConnect_readingsSingleUpdate( $hash, $optionPrefix . $command,
-	  $newreading, 1 );
+	HomeConnect_readingsSingleUpdate( $hash, $optionPrefix . $command, $newreading, 1 );
 
 	#-- doit
 	my $json =
@@ -1081,10 +1086,8 @@ sub HomeConnect_PowerState($$) {
   my $name = $hash->{NAME};
   my $haId = $hash->{haId};
 
-  my $operationState =
-	HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.OperationState", "" );
-  my $powerState =
-	HomeConnect_ReadingsVal( $hash, "BSH.Common.Setting.PowerState", "" );
+  my $operationState = HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.OperationState", "" );
+  my $powerState = HomeConnect_ReadingsVal( $hash, "BSH.Common.Setting.PowerState", "" );
 
   if ( $target !~ /^((On)|(Off)|(Standby))$/ ) {
 	return "[HomeConnect_PowerState] $name: called with wrong argument $target";
@@ -1546,11 +1549,9 @@ sub HomeConnect_Timer {
 	}
 	$retryCounter++;
 	$hash->{retrycounter} = $retryCounter;
-  }
-  else {
+  } else {
 	# all good
-	InternalTimer( gettimeofday() + $updateTimer,
-	  "HomeConnect_Timer", $hash, 0 );
+	InternalTimer( gettimeofday() + $updateTimer, "HomeConnect_Timer", $hash, 0 );
   }
 }
 
@@ -1707,6 +1708,7 @@ sub HomeConnect_ResponseGetSettings {
   $hash->{settings} = $settings;
 
   #$hash->{setlist}          = $setshtml;
+  $hash->{helper}->{init}="settings_done";
 }
 
 ###############################################################################
@@ -1808,6 +1810,7 @@ sub HomeConnect_ResponseGetPrograms {
 	Log3 $name, 1, $msg;
 	return $msg;
   }
+  $hash->{helper}->{init}="programs_done";
 }
 
 ###############################################################################
@@ -2003,28 +2006,25 @@ sub HomeConnect_checkState($) {
   my $name = $hash->{NAME};
 
   return if !defined $hash->{prefix};    #Still not initialized
-
+  my $lang = AttrVal( "global", "language", "EN" );
+  print "Language: $lang\n";
   my $programPrefix = $hash->{prefix} . "Command.";
 
+  my $currentstate = ReadingsVal($name, "state", "off");
  #--- operationState (some device report OperationState ready while powered off)
-  my $operationState =
-	HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.OperationState", "" );
+  my $operationState = HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.OperationState", "" );
   $operationState =~ s/BSH.*State.//g;
 
   #-- check for power
-  my $powerState =
-	HomeConnect_ReadingsVal( $hash, "BSH.Common.Setting.PowerState", "" );
+  my $powerState = HomeConnect_ReadingsVal( $hash, "BSH.Common.Setting.PowerState", "" );
   $powerState =~ s/BSH.*State.//g;
 
+  my $orgOpSt=$operationState;
   #-- correct for powered off and ready
-  $operationState = "Inactive"
-	if ( $powerState =~ /Off/ && $operationState =~ /Ready/ );
+  $operationState = "Inactive" if ( $powerState =~ /Off/ && $operationState =~ /Ready/ );
 
-  my $startInRelative = HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.StartInRelative", "" );
-  $startInRelative =~ s/BSH.*State.//g;    # These are seconds - never need this replacement
-
-  my $finishInRelative = HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.FinishInRelative", "" );
-  $finishInRelative =~ s/BSH.*State.//g;    # These are seconds - never need this replacement
+  my $startInRelative = HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.StartInRelative", 0 );
+  my $finishInRelative = HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.FinishInRelative", 0 );
 
   my $aprogram = HomeConnect_ReadingsVal( $hash, "BSH.Common.Root.ActiveProgram", "" );
   my $sprogram = HomeConnect_ReadingsVal( $hash, "BSH.Common.Root.SelectedProgram", "" );
@@ -2053,23 +2053,24 @@ sub HomeConnect_checkState($) {
   if ( $program ne "" && defined( $hash->{data}->{trans}->{$program} ) ) {
 	$program = $hash->{data}->{trans}->{$program};
   }
-  if ($HC_trans && defined $HomeConnect_DeviceTrans_DE{$hash->{type}}->{$program}) {
+  if ($lang eq "DE" && defined $HomeConnect_DeviceTrans_DE{$hash->{type}}->{$program}) {
 	$program = $HomeConnect_DeviceTrans_DE{$hash->{type}}->{$program};
   }
   my $pct =	HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.ProgramProgress", "0" );
   $pct =~ s/ \%.*//;
-  $pct = $HC_tt->{"finished"} if ( $pct == 100 );
+  $operationState = "Ready" if ( $pct == 100 ); #Some devices don't put a proper finish message when done
+  
   my $tim = HomeConnect_ReadingsVal( $hash,	"BSH.Common.Option.RemainingProgramTimeHHMM", "0:00" );
-  $tim = $HC_tt->{"finished"} if ( $pct eq "0:00" );
-  my $sta =
-	HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.StartAtHHMM", "0:00" );
-  my $door =
-	HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.DoorState", "closed" );
+  my $sta = HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.StartAtHHMM", "0:00" );
+  my $door = HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.DoorState", "closed" );
+
+  Log3 $name, 1, "[HomeConnect_checkState] from s:$currentstate d:$door o:$operationState";
+  if (!defined $HC_table{$lang}) { print "no translation\n"; }
 
   my $state1 = "";
   my $state2 = "";
   my $state  = "off";
-  my $trans  = $HC_tt->{ lc $operationState };
+  my $trans  = $HC_table{$lang}->{ lc $operationState };
 
   if ( $operationState =~ /(Run)/ ) {
 	$state  = "run";
@@ -2094,22 +2095,28 @@ sub HomeConnect_checkState($) {
   }
   if ( $operationState =~ /(Abort)|(Finished)/ ) {
 	$state  = "done";
-	$state1 = $HC_tt->{$state};
+	$state1 = $HC_table{$lang}->{$state};
 	$state2 = "-";
   }
   if ( $operationState =~ /(Ready)|(Inactive)|(Offline)/ ) {
-	$state  = "idle";
-	$state1 = $HC_tt->{$state};
-	$state2 = "-";
+	if ($currentstate eq "done" and $door =~ /Closed/) {
+		#Delay switching to "idle" until door gets opened so user continues to get indication that appliance needs to be emptied, even when it goes to "off" automatically
+	} else {
+		$state  = "idle";
+		$state1 = $HC_table{$lang}->{$state};
+		$state2 = "-";
+	}
   }
 
 #Opened door overrides any state from done -> idle to indicate the appliance got emptied
   if ( $door =~ /Open/ ) {
 	$state  = "idle" if $state eq "done";
-	$state1 = $HC_tt->{"door"} . " " . $HC_tt->{ lc $door };
+	$state1 = $HC_table{$lang}->{"door"} . " " . $HC_table{$lang}->{ lc $door };
 	$state2 = "-";
   }
 
+  Log3 $name, 1, "[HomeConnect_checkState] to s:$state d:$door 1:$state1 2:$state2";
+  
   #Correct special characters if using encoding=unicode
   $state1 = decode_utf8($state1) if $unicodeEncoding;
   $state2 = decode_utf8($state2) if $unicodeEncoding;
@@ -2121,10 +2128,9 @@ sub HomeConnect_checkState($) {
 	readingsBulkUpdate( $hash, "lastErr", "ok");
   }
   readingsBulkUpdate( $hash, "state",   $state );
-  #readingsBulkUpdate( $hash, "time",    $tim );
-  readingsBulkUpdate( $hash, "progress", $pct );
   readingsBulkUpdate( $hash, "state1",  $state1 );
   readingsBulkUpdate( $hash, "state2",  $state2 );
+  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Status.OperationState",  $operationState ) if $operationState ne $orgOpSt;
   readingsEndUpdate( $hash, 1 );
 }
 
@@ -2207,10 +2213,11 @@ sub HomeConnect_ResponseUpdateStatus {
   }
   readingsEndUpdate( $hash, 1 );
 
-  my $operationState =
-	HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.OperationState", "0" );
+  my $operationState = HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.OperationState", "0" );
   my $pgmRunning = $operationState =~ /((Active)|(DelayedStart)|(Run))/;
 
+  $hash->{helper}->{init}="status_done";
+  
   #--check for a running program
   if ($pgmRunning) {
 	HomeConnect_CheckProgram($hash);
@@ -2666,24 +2673,42 @@ sub HomeConnect_replaceValue($$) {
   return $value;
 }
 
-sub HomeConnect_readingsBulkUpdate($$$) {
-  my ( $hash, $reading, $value ) = @_;
-  my $name = $hash->{NAME};
-
+#Wrap the two readings Update functions into one
+sub HomeConnect_readingsUpdate($$$$$) {
+  my ( $hash, $reading, $value, $notify, $function ) = @_;
   my $nreading = HomeConnect_replaceReading( $hash, $reading );
   my $nvalue   = HomeConnect_replaceValue( $hash, $value );
+  #Translation: if reading is in list, translate the value and create a new reading with "tr_" prefix
+  my $trans = AttrVal ( $hash->{NAME}, "translate", "");
+  $trans =~ s/,/\|/g;
+  $nreading =~ /.*\.(.*)$/;
+  my $sreading = $1; #Pure last part of the reading
+  $value = $1;
+  print "Match pattern $trans vs $sreading\n";
+  if ($sreading =~ $trans) {
+	my $lvalue=lc $nvalue;
+	my $tvalue=$nvalue;
+    $tvalue =~ /\t.*/; #When translating also remove " %", " seconds", " °C" etc. to create a plain value
+	$tvalue=$HC_table{DE}{$lvalue} if (defined $HC_table{DE}{$lvalue});
+	#In case user wants the program name, try that as well:
+	$tvalue=$hash->{data}->{trans}->{$nvalue} if (defined( $hash->{data}->{trans}->{$nvalue}));
+	#$sreading="tr_".$sreading; #Custom readings don't need any prefix
+	$tvalue = decode_utf8($tvalue) if $unicodeEncoding;
+	readingsSingleUpdate( $hash, $sreading, $tvalue, $notify ) if $function eq "single";
+	readingsBulkUpdate( $hash, $sreading, $tvalue ) if $function eq "bulk";
+  }
+  return readingsSingleUpdate( $hash, $nreading, $nvalue, $notify ) if $function eq "single";
+  return readingsBulkUpdate( $hash, $nreading, $nvalue ) if $function eq "bulk"; 
+}
 
-  return readingsBulkUpdate( $hash, $nreading, $nvalue );
+sub HomeConnect_readingsBulkUpdate($$$) {
+  my ( $hash, $reading, $value ) = @_;
+  return HomeConnect_readingsUpdate($hash,$reading,$value,0,"bulk");
 }
 
 sub HomeConnect_readingsSingleUpdate($$$$) {
   my ( $hash, $reading, $value, $notify ) = @_;
-  my $name = $hash->{NAME};
-
-  my $nreading = HomeConnect_replaceReading( $hash, $reading );
-  my $nvalue   = HomeConnect_replaceValue( $hash, $value );
-
-  return readingsSingleUpdate( $hash, $nreading, $nvalue, $notify );
+  return HomeConnect_readingsUpdate($hash,$reading,$value,$notify,"single");
 }
 
 sub HomeConnect_ReadingsVal($$$) {
@@ -2707,6 +2732,28 @@ sub HomeConnect_Attr(@) {
   return if !defined $val;    #nothing to do when deleting an attribute
 
   return undef;
+}
+
+sub HomeConnect_Notify($$) {
+	my ($hash, $dev_hash) = @_;
+	my $ownName = $hash->{NAME}; # own name / hash
+	return "" if(IsDisabled($ownName)); # Return without any further action if the module is disabled
+
+	my $devName = $dev_hash->{NAME}; # Device that created the events
+	my $events = deviceEvents($dev_hash,1);
+	if ($devName eq "global" and grep(m/^INITIALIZED|REREADCFG$/, @{$events})) {
+		Log3 $hash->{NAME}, 5, "[HomeConnect_Notify] called from global for $ownName";  
+		my $def=$hash->{DEF};
+		$def="" if (!defined $def); 
+		#return HomeConnect_Init($hash);
+	}
+}
+
+################################### 
+sub HomeConnect_State($$$$) {			#reload readings at FHEM start
+	my ($hash, $tim, $sname, $sval) = @_;
+    #Log3 $hash->{NAME}, 1, "[HomeConnect_State] called";  
+	return undef;
 }
 
 1;
