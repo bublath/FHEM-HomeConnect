@@ -516,7 +516,7 @@ sub HomeConnect_ResponseInit {
 	Log3 $name, 1, $msg;
 	return $msg;
   }
-  HomeConnect_FileLog($hash,Dumper($appliances));
+  HomeConnect_FileLog($hash,"ResponseInit:".Dumper($appliances));
 
   for ( my $i = 0 ; 1 ; $i++ ) {
 	my $appliance = $appliances->{data}->{homeappliances}[$i];
@@ -591,13 +591,15 @@ sub HomeConnect_Response() {
 	  Log3 $name, 1, $msg;
 	  return $msg;
 	}
-    HomeConnect_FileLog($hash,Dumper($jhash));
+	HomeConnect_FileLog($hash,"Response with HC_PS: $HC_delayed_PS");
+    HomeConnect_FileLog($hash,"Response:".Dumper($jhash));
 
 	return HomeConnect_HandleError( $hash, $jhash )
 		if ( $jhash->{"error"} );
 
 	#-- no error, but possibly some additional things to do
     if ( defined($HC_delayed_PS) && $HC_delayed_PS ne "0" ) {
+	  HomeConnect_FileLog($hash,"Response getting Program Options");
 	  $HC_delayed_PS = 0;
 	  HomeConnect_GetProgramOptions($hash);
 	}
@@ -1255,7 +1257,7 @@ sub HomeConnect_delayTimer($$$) {
   #-- do we start in relativ or finish in relative
   my $delstart = defined( $hash->{data}->{options}->{"StartInRelative"} );
   my $delfin   = defined( $hash->{data}->{options}->{"FinishInRelative"} );
-  
+  #$delfin=1;
   #- device has option StartInRelative
   if ($delstart) {
 	$delta = HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.RemainingProgramTime", 0 );
@@ -1265,6 +1267,7 @@ sub HomeConnect_delayTimer($$$) {
   }
   elsif ($delfin) {
 	$delta = HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.FinishInRelative", 0 );
+	#$delta=13500;
 	if ($delta eq "0") {
 	#Device might have estimated program time instead
 		$delta = HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.EstimatedTotalProgramTime", 0 );
@@ -1368,8 +1371,7 @@ sub HomeConnect_startProgram($) {
 	Log3 $name, 1, $ret;
 	return $ret;
   }
-  my $program =
-	HomeConnect_ReadingsVal( $hash, "BSH.Common.Root.SelectedProgram", undef );
+  my $program =	HomeConnect_ReadingsVal( $hash, "BSH.Common.Root.SelectedProgram", undef );
   $program =~ s/.*Program\.//;
 
   #-- trailing space ???
@@ -1612,7 +1614,7 @@ sub HomeConnect_ResponseGetSettings {
 	Log3 $name, 1, $msg;
 	return $msg;
   }
-  HomeConnect_FileLog($hash,Dumper($jhash));
+  HomeConnect_FileLog($hash,"ResponseGetSettings:".Dumper($jhash));
 
   if ( $jhash->{"error"} ) {
 	my $error = HomeConnect_HandleError( $hash, $jhash );
@@ -1772,7 +1774,7 @@ sub HomeConnect_ResponseGetPrograms {
 	Log3 $name, 1, $msg;
 	return $msg;
   }
-  HomeConnect_FileLog($hash,Dumper($jhash));
+  HomeConnect_FileLog($hash,"ResponseGetPrograms:".Dumper($jhash));
 
   return HomeConnect_HandleError( $hash, $jhash )
 	if ( $jhash->{"error"} );
@@ -1829,6 +1831,7 @@ sub HomeConnect_GetProgramOptions {
   my $program =
 	HomeConnect_ReadingsVal( $hash, "BSH.Common.Root.SelectedProgram", "" );
   $program =~ s/^\s+|\s+$//g;
+  HomeConnect_FileLog($hash, "Program: $program");
   if ( $program eq "" ) {
 
 	#-- 2nd guess active program
@@ -1852,6 +1855,8 @@ sub HomeConnect_GetProgramOptions {
   #-- add prefix for calling the API
   $program = $programPrefix . $program
 	if ( $program !~ /$programPrefix/ );
+
+  HomeConnect_FileLog($hash, "Program: $program");
 
   #SPECIAL TEST CASE - leaving that in as I don't have such a device
   if ( $program =~ /Cooking.Hood.Program.Cooking.Common.Program/ ) {
@@ -1892,7 +1897,7 @@ sub HomeConnect_ResponseGetProgramOptions {
 	Log3 $name, 1, $msg;
 	return $msg;
   }
-  HomeConnect_FileLog($hash,Dumper($jhash));
+  HomeConnect_FileLog($hash,"GetProgramOptions:".Dumper($jhash));
 
   return HomeConnect_HandleError( $hash, $jhash )
 	if ( $jhash->{"error"} );
@@ -2178,7 +2183,7 @@ sub HomeConnect_ResponseUpdateStatus {
 	Log3 $name, 1, $msg;
 	return $msg;
   }
-  HomeConnect_FileLog($hash,Dumper($jhash));
+  HomeConnect_FileLog($hash,"Update Status:".Dumper($jhash));
 
   #-- local readings hash has all prefixes
   my %localreadings = ();
@@ -2267,12 +2272,10 @@ sub HomeConnect_ResponseCheckProgram {
 	Log3 $name, 1, $msg;
 	return $msg;
   }
-  HomeConnect_FileLog($hash,Dumper($jhash));
+  HomeConnect_FileLog($hash,"ResponseCheckProgram:".Dumper($jhash));
 
   #-- change readings if necessary
-  Log3 $name, 1,
-	"[HomeConnect_ResponseCheckProgram] $name: ActiveProgram WOULD BE SET TO   "
-	. $jhash->{data}->{key};
+  Log3 $name, 1, "[HomeConnect_ResponseCheckProgram] $name: ActiveProgram WOULD BE SET TO ". $jhash->{data}->{key};
   readingsBeginUpdate($hash);
   for ( my $i = 0 ; 1 ; $i++ ) {
 	my $optsline = $jhash->{data}->{options}[$i];
@@ -2498,7 +2501,7 @@ sub HomeConnect_ReadEventChannel($) {
 		Log3 $name, 2, "[HomeConnect_ReadEventChannel] $name: JSON error reading from event channel";
 		return;
 	  }
-	HomeConnect_FileLog($hash,Dumper($jhash));
+	HomeConnect_FileLog($hash,"Event:".Dumper($jhash));
 
 	  my $isfinished = 0;
 	  my $isalarmoff = 0;
@@ -2534,6 +2537,10 @@ sub HomeConnect_ReadEventChannel($) {
 		}
 		elsif ( $key =~ /ActiveProgram/ ) {
 		#If a program gets started (manually) there are potentially new Options like SilenceOnDemand that need to be queried
+		  $HC_delayed_PS = 0; #Clear request for program options just in case, as we do it anyway
+	      HomeConnect_GetProgramOptions($hash);
+		} elsif ( $key =~ /SelectedProgram/ ) {
+		#Looks like set selectedprogram does not necessarly get a response callback, so react on the event 
 		  $HC_delayed_PS = 0; #Clear request for program options just in case, as we do it anyway
 	      HomeConnect_GetProgramOptions($hash);
 		}	elsif ( $key =~ /RemainingProgramTime/ ) {
@@ -2766,7 +2773,7 @@ sub HomeConnect_FileLog($$) {
 #Wrap request, for logging purposes
 sub HomeConnect_request($$) {
 	my ($hash,$data) = @_;
-	HomeConnect_FileLog($hash,Dumper($data));
+	HomeConnect_FileLog($hash,"Request:".Dumper($data));
 	HomeConnectConnection_request( $hash, $data );
 }
 	  
