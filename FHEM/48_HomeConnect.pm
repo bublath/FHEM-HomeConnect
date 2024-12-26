@@ -591,15 +591,13 @@ sub HomeConnect_Response() {
 	  Log3 $name, 1, $msg;
 	  return $msg;
 	}
-  HomeConnect_FileLog($hash,Dumper($jhash));
+    HomeConnect_FileLog($hash,Dumper($jhash));
 
-   #-- not necessary to check for error, we know already that something is wrong
-	return HomeConnect_HandleError( $hash, $jhash );
+	return HomeConnect_HandleError( $hash, $jhash )
+		if ( $jhash->{"error"} );
 
 	#-- no error, but possibly some additional things to do
-  }
-  else {
-	if ( defined($HC_delayed_PS) && $HC_delayed_PS ne "0" ) {
+    if ( defined($HC_delayed_PS) && $HC_delayed_PS ne "0" ) {
 	  $HC_delayed_PS = 0;
 	  HomeConnect_GetProgramOptions($hash);
 	}
@@ -830,6 +828,7 @@ sub HomeConnect_Set($@) {
   #-- doit !
   shift @a;
   my $command = shift @a;
+  HomeConnect_FileLog($hash,"set $command ".join(" ",@a));
   Log3 $name, 1, "[HomeConnect] $name: set command: $command";
 
   if ( $command eq "ZZZ_Dump" ) {
@@ -1028,8 +1027,7 @@ sub HomeConnect_Set($@) {
 	if ( ( !defined $program )
 	  || ( $programs ne "" && index( $programs, $program ) == -1 ) )
 	{
-	  return
-"[HomeConnect_Set] $name: unknown program $program, choose one of $programs";
+	  return "[HomeConnect_Set] $name: unknown program $program, choose one of $programs";
 	}
 
 	##### TEMPORARY
@@ -1461,6 +1459,7 @@ sub HomeConnect_startProgram($) {
 	data     =>
 	  "{\"data\":{\"key\":\"$programPrefix$program\",\"options\":[$optdata]}}"
   };
+
   Log3 $name, 1, "[HomeConnect] $name: start program $program with uri " . $data->{uri} . " and data " . $data->{data};
   HomeConnect_request( $hash, $data );
 }
@@ -1565,7 +1564,7 @@ sub HomeConnect_SetAmbientColor {
   $color=lc $color;
   my $json =
 	"{\"key\":\"BSH.Common.Setting.AmbientLightCustomColor\",\"value\":\"#$color\"}";
-  my $data = {
+  $data = {
 	callback => \&HomeConnect_Response,
 	uri  => "/api/homeappliances/$hash->{haId}/settings/BSH.Common.Setting.AmbientLightCustomColor",
 	data => "{\"data\":$json}"
@@ -2531,11 +2530,9 @@ sub HomeConnect_ReadEventChannel($) {
 		  $checkstate = 1;
 		}
 		elsif ( $key =~ /ActiveProgram/ ) {
-		  ##
-		}
-		elsif ( $key =~ /SelectedProgram/ ) {
-		  #Make sure prorgam specific options are present
-		  HomeConnect_GetProgramOptions($hash);
+		#If a program gets started (manually) there are potentially new Options like SilenceOnDemand that need to be queried
+		  $HC_delayed_PS = 0; #Clear request for program options just in case, as we do it anyway
+	      HomeConnect_GetProgramOptions($hash);
 		}	elsif ( $key =~ /RemainingProgramTime/ ) {
 		  my $h    = int( $value / 3600 );
 		  my $m    = ceil( ( $value - 3600 * $h ) / 60 );
