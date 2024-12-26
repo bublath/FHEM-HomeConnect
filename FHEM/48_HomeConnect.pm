@@ -65,7 +65,7 @@ my %HC_table = (
   "running"     => "Läuft",
   "inactiveC"   => "Ruhezustand",
   "ready"       => "Bereit",
-  "delaystart"  => "verzögerter Start von",
+  "delayedstart"  => "Start um",
   "delayend"    => "Ende um",
   "pause"       => "Pause",
   "actionreq"   => "Eingriff nötig",
@@ -103,7 +103,7 @@ my %HC_table = (
   "running"     => "running",
   "inactiveC"   => "inactive",
   "ready"       => "ready",
-  "delaystart"  => "delayed start of",
+  "delayedstart"  => "Start at",
   "delayend"    => "end at",
   "pause"       => "pause",
   "actionreq"   => "action required",
@@ -532,7 +532,7 @@ sub HomeConnect_ResponseInit {
 	  Log3 $name, 1, "[HomeConnect_ResponseInit] $name: defined as HomeConnect $hash->{type} $hash->{brand} $hash->{vib}";
 
 	  my $icon = $HomeConnect_Iconmap{$appliance->{type}};
-	  $attr{$name}{icon} = $icon if (!defined $attr{$name}{icon} && defined $icon);
+	  $attr{$name}{icon} = $icon if (!defined $attr{$name}{icon} && !defined $attr{$name}{devStateIcon} && defined $icon);
 	  $attr{$name}{stateFormat} = "state1 (state2)" if !defined $attr{$name}{stateFormat};
 
 	  $attr{$name}{alias} = $hash->{aliasname}
@@ -704,6 +704,10 @@ sub HomeConnect_Set($@) {
 	$availableCmds .= $hash->{data}->{poweroff} . ":noArg ";
   }
 
+  if ( $type =~ /(Hood)|(Dishwasher)/ ) {
+	$availableCmds .= "AmbientLight:colorpicker,RBG ";
+  }
+
   #-- programs taken from hash or empty
   my $programs = $hash->{programs};
   if ( !defined($programs) ) {
@@ -845,6 +849,10 @@ sub HomeConnect_Set($@) {
 
 	HomeConnect_UpdateStatus($hash);
 	#HomeConnect_checkState($hash);
+  }
+  elsif ( $command =~ /AmbientLight/ ) {
+
+	HomeConnect_SetAmbientColor($hash,$a[0]);
   }
   elsif ( $command =~ /Power((On)|(Off)|(Standby))/ ) {
 	HomeConnect_PowerState( $hash, $1 );
@@ -1342,31 +1350,6 @@ sub HomeConnect_delayTimer($$$) {
   }
 }
 
-#Calculate the delay in seconds when trying to finish by a specific hour
-#Challenge here is that the hour could be on the next day
-use DateTime;
-
-sub HomeConnect_calcFinishAt($$$) {
-  my ( $duration, $targethour, $targetminute ) = @_;
-  my $tm              = DateTime->now();
-  my $local_time_zone = DateTime::TimeZone->new( name => 'local' );
-  $tm->set_time_zone($local_time_zone);
-  my $nextday = 0;
-  $nextday = 1 if $tm->hour > $targethour;
-  $nextday = 1 if $tm->hour == $targethour and $tm->minute > $targetminute;
-  if ($nextday) {
-	my $epoch = $tm->epoch + 24 * 60 * 60;
-	$tm = DateTime->from_epoch( epoch => $epoch );
-  }
-  $tm->set( hour => $targethour, minute => $targetminute, second => 0 );
-  my $dur = DateTime::Duration->new( seconds => ( $duration + 0 ) );
-  $tm->subtract_duration($dur);
-  my $now = DateTime->now();
-  $now->set_time_zone($local_time_zone);
-  my $ret = $tm->subtract_datetime_absolute($now);
-  return $ret->seconds;
-}
-
 ###############################################################################
 #
 #   startProgram
@@ -1567,6 +1550,27 @@ sub HomeConnect_WaitTimer {
 	HomeConnect_ConnectEventChannel($hash);
   }
   InternalTimer( gettimeofday() + $updateTimer, "HomeConnect_Timer", $hash, 0 );
+
+}
+
+sub HomeConnect_SetAmbientColor {
+  my ( $hash, $color ) = @_;
+  
+#Retrieve setting, just to try it out - not necessary to set the color
+    my $data = {
+	callback => \&HomeConnect_Response,
+	uri      => "/api/homeappliances/$hash->{haId}/settings/BSH.Common.Setting.AmbientLightColor"
+  };
+  HomeConnect_request( $hash, $data );
+  $color=lc $color;
+  my $json =
+	"{\"key\":\"BSH.Common.Setting.AmbientLightCustomColor\",\"value\":\"#$color\"}";
+  my $data = {
+	callback => \&HomeConnect_Response,
+	uri  => "/api/homeappliances/$hash->{haId}/settings/BSH.Common.Setting.AmbientLightCustomColor",
+	data => "{\"data\":$json}"
+ }; 
+ HomeConnect_request( $hash, $data );
 
 }
 
@@ -2053,7 +2057,7 @@ sub HomeConnect_checkState($) {
   }
   my $pct =	HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.ProgramProgress", "0" );
   $pct =~ s/ \%.*//;
-  $operationState = "Ready" if ( $pct == 100 ); #Some devices don't put a proper finish message when done
+  $operationState = "Finished" if ( $pct == 100 ); #Some devices don't put a proper finish message when done
   
   my $tim = HomeConnect_ReadingsVal( $hash,	"BSH.Common.Option.RemainingProgramTimeHHMM", "0:00" );
   my $sta = HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.StartAtHHMM", "0:00" );
@@ -2077,7 +2081,7 @@ sub HomeConnect_checkState($) {
 	$state1 = "$program";
 	$state2 = $trans;
   }
-  if ( $operationState =~ /(Delayed)/ ) {
+  if ( $operationState =~ /(Delayed)|(DelayedStart)/ ) {
 	$state  = "scheduled";
 	$state1 = $trans;
 	$state2 = "$sta";
