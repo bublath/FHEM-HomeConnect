@@ -2099,6 +2099,9 @@ sub HomeConnect_checkState($) {
   if ( $operationState =~ /(Ready)|(Inactive)|(Offline)/ ) {
 	if ($currentstate eq "done" and $door =~ /Closed/) {
 		#Delay switching to "idle" until door gets opened so user continues to get indication that appliance needs to be emptied, even when it goes to "off" automatically
+		$state  = "done";
+		$state1 = $HC_table{$lang}->{$state};
+		$state2 = "-";
 	} else {
 		$state  = "idle";
 		$state1 = $HC_table{$lang}->{$state};
