@@ -594,8 +594,13 @@ sub HomeConnect_Response() {
 	HomeConnect_FileLog($hash,"Response with HC_PS: $HC_delayed_PS");
     HomeConnect_FileLog($hash,"Response:".Dumper($jhash));
 
-	return HomeConnect_HandleError( $hash, $jhash )
-		if ( $jhash->{"error"} );
+	if ( $jhash->{"error"} ) {
+		if ($jhash->{"description"}) {
+			#Ignore if error contains something with "offline" as it seems normal that some calls don't get a callback (only events)
+			return if $jhash->{description} =~ /offline/;
+		}
+		HandleError($hash,$jhash);
+	}
 
 	#-- no error, but possibly some additional things to do
     if ( defined($HC_delayed_PS) && $HC_delayed_PS ne "0" ) {
@@ -782,21 +787,21 @@ sub HomeConnect_Set($@) {
 		$availableOpts .= $key;
 
 		#-- type determines widget
-		my $type = $hash->{data}->{options}->{$key}->[1];
+		my $dtype = $hash->{data}->{options}->{$key}->[1];
 
 		#-- no special widget
-		if ( $type eq "Double" ) {
+		if ( $dtype eq "Double" ) {
 
 		  #-- no special widget
 		}
-		elsif ( $type eq "Int" ) {
+		elsif ( $dtype eq "Int" ) {
 
 		  #-- select 0/1
 		}
-		elsif ( $type eq "Boolean" ) {
+		elsif ( $dtype eq "Boolean" ) {
 		  $availableOpts .= ":0,1";    #--- ON/OFF??
 		}
-		elsif ( $type =~ /Enum/ ) {
+		elsif ( $dtype =~ /Enum/ ) {
 		  my $vals = $hash->{data}->{options}->{$key}->[3];
 		  $availableOpts .= ":" . $vals;
 		}
@@ -1407,7 +1412,7 @@ sub HomeConnect_startProgram($) {
 	my $value = HomeConnect_ReadingsVal( $hash, $keypref, "" );
 
 	#-- safeguard against missing delay
-	$value = "0"
+	$value = "0 seconds"
 	  if ( $key eq "StartInRelative" && $value eq "" );
 	Log3 $name, 1,
 	  "[HomeConnect_startProgram] $name: option $key has value $value";
@@ -2079,6 +2084,11 @@ sub HomeConnect_checkState($) {
 	$state  = "run";
 	$state1 = "$program";
 	$state2 = "$tim";
+	if ($currentstate ne $state and $program ne "") {
+		#state changed into running - now get the program options that might only be valid during run (e.g. SilenceOnDemand)
+		  $HC_delayed_PS = 0; #Clear request for program options just in case, as we do it anyway
+	      HomeConnect_GetProgramOptions($hash);
+	}
   }
   if ( $operationState =~ /Pause/ ) {
 	$state  = "pause";
@@ -2536,9 +2546,6 @@ sub HomeConnect_ReadEventChannel($) {
 		  $checkstate = 1;
 		}
 		elsif ( $key =~ /ActiveProgram/ ) {
-		#If a program gets started (manually) there are potentially new Options like SilenceOnDemand that need to be queried
-		  $HC_delayed_PS = 0; #Clear request for program options just in case, as we do it anyway
-	      HomeConnect_GetProgramOptions($hash);
 		} elsif ( $key =~ /SelectedProgram/ ) {
 		#Looks like set selectedprogram does not necessarly get a response callback, so react on the event 
 		  $HC_delayed_PS = 0; #Clear request for program options just in case, as we do it anyway
@@ -2553,6 +2560,7 @@ sub HomeConnect_ReadEventChannel($) {
 		  $checkstate = 1;
 		}
 		elsif ( $key =~ /StartInRelative/ ) {
+		  $value =~ s/\s$//;
 		  my $h    = int( $value / 3600 );
 		  my $m    = ceil( ( $value - 3600 * $h ) / 60 );
 		  my $tim2 = sprintf( "%d:%02d", $h, $m );
