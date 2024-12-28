@@ -603,13 +603,11 @@ sub HomeConnect_Response() {
 
 	if ( $jhash->{"error"} ) {
 		my $desc=$jhash->{"error"}->{"description"};
-		print "$desc\n";
 		if ($desc) {
 			if ($desc =~ /Setting is not supported/) {  
 			    #Unfortunately the API returns 'SDK.Error.UnsupportedSetting' for both the API call and the setting itself
 				#So checking the description is the only way to distinguish
 				#Remembering that a setting does not work, so we can exclude it in future. Doing it in an attribute lets users revert that decision
-				print "Checking setting $path\n";
 				my $exAttr=$attr{$name}{"excludeSetting"};
 				if (defined $exAttr and $exAttr ne "") {
 					$exAttr =~ s/,/\$|^/m;
@@ -748,7 +746,6 @@ sub HomeConnect_Set($@) {
   }
   
   my $operationState = HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.OperationState", "" );
-  my $pgmRunning=0;
   #$pgmRunning=1 if (HomeConnect_ReadingsVal($hash,"BSH.Common.Root.ActiveProgram","") ne "");
   my $pgmRunning = $operationState =~ /((Active)|(DelayedStart)|(Run)|(Pause))/;
   my $remoteStartAllowed=HomeConnect_ReadingsVal($hash,"BSH.Common.Status.RemoteControlStartAllowed",0);
@@ -1300,12 +1297,11 @@ sub HomeConnect_delayTimer($$$) {
 						   #-- device has option FinishInRelative
   }
   elsif ($delfin) {
+    my $estimate = HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.EstimatedTotalProgramTime", 0 );
 	$delta = HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.FinishInRelative", 0 );
 	#$delta=13500;
-	if ($delta eq "0") {
-	#Device might have estimated program time instead
-		$delta = HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.EstimatedTotalProgramTime", 0 );
-	}
+	#Prioritize the estimate as FinishInRelative might not be set correctly if device uses the estimate
+	$delta = $estimate if $estimate ne "0" or $delta eq "0";
 	$delta =~ s/\D+//g;    #strip " seconds"
   }
   else {
@@ -1379,6 +1375,7 @@ sub HomeConnect_delayTimer($$$) {
 	readingsBeginUpdate($hash);
 	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.FinishInRelative", sprintf("%i seconds",$endinrelative) );
 	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.FinishInRelativeHHMM", sprintf( "%d:%02d", $h, $m ) );
+	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.StartAtHHMM", $starttime );
 	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.FinishAtHHMM", $endtime );
 	readingsEndUpdate( $hash, 1 );
 	Log3 $name, 1, "[HomeConnect_delayTimer] $name: finishInRelative set to $endinrelative";
@@ -2566,8 +2563,11 @@ sub HomeConnect_ReadEventChannel($) {
 			#$tr_value =
 		  }
 		  $checkstate = 1;
-		}
-		elsif ( $key =~ /ActiveProgram/ ) {
+		} elsif ( $key =~ /ActiveProgram/ ) {
+		} elsif ( $key =~ /EstimatedTotalProgramTime/ ) {
+		  #If the device estimates the total time, the FinishInRelative would contain some potential garbage number - reset
+		  HomeConnect_readingsSingleUpdate( $hash,"BSH.Common.Option.FinishInRelative",0,1);
+		  $checkstate=1;
 		} elsif ( $key =~ /SelectedProgram/ ) {
 		#Looks like set selectedprogram does not necessarly get a response callback, so react on the event 
 		  $HC_delayed_PS = 0; #Clear request for program options just in case, as we do it anyway
