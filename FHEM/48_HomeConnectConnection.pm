@@ -550,6 +550,7 @@ sub HomeConnectConnection_CallbackRequest
   my ($param, $err, $data) = @_;
   my $hash = $param->{hash};
   my $name = $hash->{NAME};
+
   if ($err) {
     Log3 $name, 2, "$name: error in request" . $err;    
   } else {
@@ -558,7 +559,7 @@ sub HomeConnectConnection_CallbackRequest
 
   if (defined($param->{nextcall})) {
     my $nextcall = $param->{nextcall};
-    $nextcall->{callback}($hash, $data);
+    $nextcall->{callback}($hash, $data, $param->{path});
   }
   else {
     Log3 $name, 2 , "$name: no callback for request registered";

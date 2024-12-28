@@ -611,8 +611,9 @@ sub HomeConnect_Response() {
 				#Remembering that a setting does not work, so we can exclude it in future. Doing it in an attribute lets users revert that decision
 				print "Checking setting $path\n";
 				my $exAttr=$attr{$name}{"excludeSetting"};
-				$exAttr=~s/,/|/g if defined $exAttr;
 				if (defined $exAttr and $exAttr ne "") {
+					$exAttr =~ s/,/\$|^/m;
+					$exAttr = "^".$exAttr."\$";
 					$attr{$name}{"excludeSetting"}.=",".$path if ($exAttr !~ /$path/);
 				} else {
 					$attr{$name}{"excludeSetting"}=$path;
@@ -713,7 +714,8 @@ sub HomeConnect_Set($@) {
 
   my $excludes = $attr{$name}{"excludeSetting"};
   $excludes="" if !defined $excludes;
-  $excludes=~s/,/\|/g;
+  $excludes =~ s/,/\$|^/m;
+  $excludes = "^".$excludes."\$";
 	  
   #-- first check: Logged in? WRONG, SHOULD BE CONNECTED
   #if (Value($hash->{hcconn}) ne "Logged in") {
@@ -807,7 +809,7 @@ sub HomeConnect_Set($@) {
 	  #-- key with or without prefix
 	  my $prefix = $hash->{data}->{options}->{$key}->[0];
 
-	  if ($excludes eq "" or $key !~ /$excludes/) {
+	  if ($key !~ /$excludes/) {
 		  #-- special key for delayed start
 		  if ( $key =~ /((StartInRelative)|(FinishInRelative))/ ) {
 
@@ -2717,7 +2719,8 @@ sub HomeConnect_readingsUpdate($$$$$) {
   my $nvalue   = HomeConnect_replaceValue( $hash, $value );
   #Translation: if reading is in list, translate the value and create a new reading with "tr_" prefix
   my $trans = AttrVal ( $hash->{NAME}, "translate", "");
-  $trans =~ s/,/\|/g;
+  $trans =~ s/,/\$|^/m;
+  $trans = "^".$trans."\$";
   $nreading =~ /.*\.(.*)$/;
   my $sreading = $1; #Pure last part of the reading
   $value = $1;
