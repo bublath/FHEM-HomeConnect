@@ -2962,8 +2962,16 @@ sub HomeConnect_State($$$$) {			#reload readings at FHEM start
 			</li>
 	<li><b>logfile &lt;Filename&gt;</b><br>
 			<a id="HomeConnect-attr-logfile"></a>
-			For development purposes: A temporary logfile device will be created and logs all FHEM events plus all API calls and responses/events (JSON)
+			For development purposes: A temporary logfile device will be created and logs all FHEM events plus all API calls and responses/events (JSON).<br>
+			The HaIds are automatically removed, so the file should be safe to share without any personal information.
 			</li>
+	<li><b>excludeSetting &lt;Option List&gt;</b><br>
+			<a id="HomeConnect-attr-excludeSetting"></a>
+			Comma separeted list of options (as written in the "set" list) that should be hidden as they are unwanted or do not apply for your specific device.<br>
+			This list will be automatically extended when the API return a "not supported" error.<br>
+			Make sure to save your config to make this permanent. Also check this list if you miss a setting - maybe a "false positive" was detected, e.g. by trying to use a setting at a stage when the device does not accept it, while it would in a different stage.
+			</li>
+			
   </ul>
 </ul>
 
