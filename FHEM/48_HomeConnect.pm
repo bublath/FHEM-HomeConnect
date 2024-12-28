@@ -747,7 +747,8 @@ sub HomeConnect_Set($@) {
   
   my $operationState = HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.OperationState", "" );
   #$pgmRunning=1 if (HomeConnect_ReadingsVal($hash,"BSH.Common.Root.ActiveProgram","") ne "");
-  my $pgmRunning = $operationState =~ /((Active)|(DelayedStart)|(Run)|(Pause))/;
+  #Do not count DelayedStart as "running" as it is required to "StartProgram" when the delay is changed
+  my $pgmRunning = $operationState =~ /((Active)|(Run)|(Pause))/;
   my $remoteStartAllowed=HomeConnect_ReadingsVal($hash,"BSH.Common.Status.RemoteControlStartAllowed",0);
 
 #-- no programs for freezers, fridge freezers, refrigerators and wine coolers
@@ -2591,6 +2592,7 @@ sub HomeConnect_ReadEventChannel($) {
 		  my ( $startmin, $starthour ) =
 			( localtime( time + $value ) )[ 1, 2 ];
 		  my $delta = HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.RemainingProgramTime", 0 );
+		  $delta =~ s/\t.*//; # remove seconds
 		  #TODO: test number
 		  my ( $endmin, $endhour ) =
 			( localtime( time + $value + $delta ) )[ 1, 2 ];
@@ -2657,7 +2659,7 @@ sub HomeConnect_ReadEventChannel($) {
 	}
 	elsif ( $event eq "DISCONNECTED" ) {
 	  my $state = "Offline";
-	  readingsBulkUpdate( $hash, "state", $state )
+	  readingsSingleUpdate( $hash, "state", $state, 1)
 		if ( $hash->{STATE} ne $state );
 	  Log3 $name, 4, "[HomeConnect_ReadEventChannel] $name: disconnected $id";
 	  $checkstate=1;
