@@ -1309,6 +1309,21 @@ sub HomeConnect_delayTimer($$$$) {
   }
   HomeConnect_FileLog($hash,"$command $value $delta");
 
+  my $operationState = HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.OperationState", "" );
+  if ($operationState =~ /DelayedStart/) {
+	  #if device is already in DelayedStart, program needs to be stopped first
+	  my $data = {
+	  callback => \&HomeConnect_Response,
+	  uri      => "/api/homeappliances/$haId/programs/active"
+	  };
+	  HomeConnectConnection_delrequest( $hash, $data );
+	  $hash->{helper}->{autostart}=1;
+	  #Remember the desired setting as "stopProgram" will reset StartInRelative to 0
+	  #Once stop is confirmed (opeationState == Ready) the ReadEventChannel will set autostart to 2 and call this function again
+	  $hash->{helper}->{delay}=join(",",$command,$value,$start);
+	  return;
+  }
+
   #-- determine start and end
   my ( $min,             $hour ) = ( localtime() )[ 1, 2 ];
   my ( $startinrelative, $starttime, $endinrelative, $endtime );
@@ -1360,7 +1375,6 @@ sub HomeConnect_delayTimer($$$$) {
 	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.FinishAtHHMM", $endtime );
 	readingsEndUpdate( $hash, 1 );
 	Log3 $name, 1, "[HomeConnect_delayTimer] $name: startInRelative set to $startinrelative";
-    HomeConnect_startProgram($hash) if (defined $start and $start eq "start");
 	#-- device has option FinishInRelative
   }
   else {
@@ -1373,8 +1387,8 @@ sub HomeConnect_delayTimer($$$$) {
 	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.FinishAtHHMM", $endtime );
 	readingsEndUpdate( $hash, 1 );
 	Log3 $name, 1, "[HomeConnect_delayTimer] $name: finishInRelative set to $endinrelative";
-	HomeConnect_startProgram($hash) if (defined $start and $start eq "start");
   }
+  HomeConnect_startProgram($hash) if (defined $start and $start eq "start");
 }
 
 ###############################################################################
@@ -1390,7 +1404,8 @@ sub HomeConnect_startProgram($) {
   my $ret;
 
   my $programPrefix = $hash->{prefix} . ".Program.";
-
+  $hash->{helper}->{autostart}=0;
+  
   my $programs = $hash->{programs};
   if ( !defined($programs) || $programs eq "" ) {
 	$ret = "[HomeConnect_startProgram] $name: Cannot start, list of programs empty";
@@ -2164,9 +2179,13 @@ sub HomeConnect_checkState($) {
   readingsEndUpdate( $hash, 1 );
 
   HomeConnect_GetProgramOptions($hash) if ($hash->{helper}->{updatePO} and $hash->{helper}->{updatePO} ne 0); 
+  #If stopProgram is done, retry to set delay
+  if ($hash->{helper}->{autostart}==2 and $hash->{helper}->{delay}) {
+	  my @args=split(",",$hash->{helper}->{delay});
+	  HomeConnect_delayTimer($hash,$args[0],$args[1],$args[2]);
+	  delete $hash->{helper}->{delay};
+  }
 }
-
-
 
 ##############################################################################
 #
@@ -2646,8 +2665,13 @@ sub HomeConnect_ReadEventChannel($) {
 		  #-- hijacking the prefix although not authorized
 		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.AlarmClockHHMM", $tim5 );
 		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.AlarmAtHHMM", $tim6 );
-		}
-		elsif ( $key =~ /(DoorState)|(OperationState)/ ) {
+		} elsif ( $key =~ /(DoorState)/ ) {
+		  $checkstate = 1;
+		} elsif ( $key =~ /(OperationState)/ ) {
+		  if (defined $value) {
+			#When trying to change delayedStart, we need to wait until stopProgram is finished before continuing
+		    $hash->{helper}->{autostart}=2 if (defined $hash->{helper}->{autostart} and $hash->{helper}->{autostart} == 1 and $value=~/Ready/);
+		  }
 		  $checkstate = 1;
 		}
 		elsif ( $key =~ /RemoteControlStartAllowed/ ) {
