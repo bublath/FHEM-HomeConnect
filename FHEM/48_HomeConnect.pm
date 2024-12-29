@@ -745,7 +745,7 @@ sub HomeConnect_Set($@) {
   my $operationState = HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.OperationState", "" );
   #$pgmRunning=1 if (HomeConnect_ReadingsVal($hash,"BSH.Common.Root.ActiveProgram","") ne "");
   #Do not count DelayedStart as "running" as it is required to "StartProgram" when the delay is changed
-  my $pgmRunning = $operationState =~ /((Active)|(Run)|(Pause)|(DelayedStart))/;
+  my $pgmRunning = $operationState =~ /((Active)|(Run)|(Pause))/;
   my $remoteStartAllowed=HomeConnect_ReadingsVal($hash,"BSH.Common.Status.RemoteControlStartAllowed",0);
 
 #-- no programs for freezers, fridge freezers, refrigerators and wine coolers
@@ -755,9 +755,9 @@ sub HomeConnect_Set($@) {
 	$availableCmds .= " PauseProgram:noArg" if ($operationState =~ /((Active)|(Run))/);
 	$availableCmds .= " ResumeProgram:noArg" if ($operationState =~ /(Pause)/);
 
-	$availableCmds .= " StartProgram:noArg" if ($remoteStartAllowed and $operationState =~ /(Active)/);
+	$availableCmds .= " StartProgram:noArg" if ($remoteStartAllowed and $operationState =~ /(Ready)/);
 
-	$availableCmds .= " SelectedProgram:$programs" if ($operationState =~ /(Active)/);;
+	$availableCmds .= " SelectedProgram:$programs" if ($operationState =~ /(Ready)/);;
   }
 
 #-- available settings ----------------------------------------------------------------------
@@ -937,8 +937,7 @@ sub HomeConnect_Set($@) {
   #--resume paused program------------------------------------------------------
   }
   elsif ( $command eq "ResumeProgram" ) {
-	return "[HomeConnect_Set] $name: no program running to resume"
-	  if ( !$pgmRunning );
+	return "[HomeConnect_Set] $name: no program running to resume" if ($operationState =~ /(Pause)/);
 	return HomeConnect_resumeProgram($hash);
 
    #--stop current program------------------------------------------------------
