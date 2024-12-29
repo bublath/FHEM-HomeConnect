@@ -250,7 +250,7 @@ $HomeConnect_DeviceTrans_DE{"FridgeFreezer"} = {};
 #  special types (LaundryCare.Washer.EnumType.) SpinSpeed, Temperature
 $HomeConnect_DeviceSettings{"Washer"} = [ "ChildLock", "PowerState" ];
 $HomeConnect_DevicePrefix{"Washer"}   = "LaundryCare.Washer";
-$HomeConnect_DevicePowerOff{"Washer"} = "PowerOff";
+$HomeConnect_DevicePowerOff{"Washer"} = "MainsOff";
 $HomeConnect_DeviceEvents{"Washer"} = [ "IDos1FillLevelPoor", "IDos2FillLevelPoor" ];
 $HomeConnect_DeviceTrans_DE{"Washer"} = {
   "Cotton"                => "Baumwolle",
@@ -269,7 +269,8 @@ $HomeConnect_DeviceTrans_DE{"Washer"} = {
   "Towels"                => "Handtücher",
   "DownDuvet.Duvet"       => "Bettdecke",
   "DrumClean"             => "Trommelreinigung",
-  "PowerSpeed59"		  => "powerSpeed59"
+  "PowerSpeed59"		  => "powerSpeed59",
+  "SpinDrain"			  => "Schleudern"
 };
 
 #-- Dryer
@@ -726,18 +727,18 @@ sub HomeConnect_Set($@) {
   #  return $availableCmds if( $a[1] eq "?" );
   #} # WHAT ELSE???
 
+  my $pwchoice="";
   #-- PowerOn not for Hob, Oven and Washer
-  #if( $powerOff && $type !~ /(Hob)|(Oven)|(Washer)/){
   if ( $type !~ /(Hob)|(Oven)|(Washer)/ ) {
-	$availableCmds .= "PowerOn:noArg ";
-
-	#return $availableCmds if( $a[1] eq "?" );
+	$pwchoice="On";
   }
 
   #-- PowerOff not for Hob, Oven
-  #if( !$powerOff && $type !~ /(Hob)|(Oven)/){
   if ( defined( $hash->{data}->{poweroff} ) ) {
-	$availableCmds .= $hash->{data}->{poweroff} . ":noArg ";
+    $pwchoice.="," if $pwchoice ne "";
+    $pwchoice.="Standby" if $hash->{data}->{poweroff} =~ /Standby/;
+    $pwchoice.="Off" if $hash->{data}->{poweroff} =~ /Off/;
+	$availableCmds .= "Power:".$pwchoice." ";
   }
 
   if ( $type =~ /(Hood)|(Dishwasher)/ ) {
@@ -891,8 +892,12 @@ sub HomeConnect_Set($@) {
 
 	HomeConnect_SetAmbientColor($hash,$a[0]);
   }
-  elsif ( $command =~ /Power((On)|(Off)|(Standby))/ ) {
-	HomeConnect_PowerState( $hash, $1 );
+  elsif ( $command =~ /Power/ ) {
+    return if (!$a[0]);
+    my $pwcmd=$command.$a[0];
+	$pwcmd =~ s/Power//;
+	$pwcmd =~ s/Off/MainsOff/ if $hash->{data}->{poweroff} eq "MainsOff";
+	HomeConnect_PowerState( $hash, $pwcmd );
 
 	#-- ChildLock -------------------------------------------------------
   }
@@ -1128,7 +1133,6 @@ sub HomeConnect_Get($@) {
   elsif ( $cmd eq "Status" ) {
 	return HomeConnect_UpdateStatus($hash);
   }
-  
 }
 
 ###############################################################################
@@ -1145,7 +1149,7 @@ sub HomeConnect_PowerState($$) {
   my $operationState = HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.OperationState", "" );
   my $powerState = HomeConnect_ReadingsVal( $hash, "BSH.Common.Setting.PowerState", "" );
 
-  if ( $target !~ /^((On)|(Off)|(Standby))$/ ) {
+  if ( $target !~ /^((On)|(Off)|(Standby)|(MainsOff))$/ ) {
 	return "[HomeConnect_PowerState] $name: called with wrong argument $target";
   }
   else {
@@ -1751,6 +1755,9 @@ sub HomeConnect_ResponseGetSettings {
 
 	#Still put all received settings into readings
 	HomeConnect_readingsBulkUpdate( $hash, $keypref, $value );
+	$hash->{data}->{setting}->{$key}->{value}=$value;
+	$hash->{data}->{setting}->{$key}->{unit}=$unit if ($unit and $unit ne "");
+	$hash->{data}->{setting}->{$key}->{prefix}=$pref;
 	Log3 $name, 4, "[HomeConnect_ResponseGetSettings] $name: updating setting $key to $value";
   }
   readingsEndUpdate( $hash, 1 );
@@ -1957,6 +1964,8 @@ sub HomeConnect_ResponseGetProgramOptions {
   #   no change of readings at this stage
   my %localoptions = ();
   my $options      = "";
+  #Clear hash as new options will replace old one - but keep all for testing purposes now
+  #delete $hash->{data}->{option};
 
   for ( my $i = 0 ; 1 ; $i++ ) {
 	my $optsline = $jhash->{data}->{options}[$i];
@@ -2033,6 +2042,14 @@ sub HomeConnect_ResponseGetProgramOptions {
 	$options .= ","
 	  if ( $options ne "" );
 	$options .= $key;
+	#New: Put data into a hash
+	HomeConnect_setOption($hash,$key,"min",$optsline->{constraints}->{min});
+	HomeConnect_setOption($hash,$key,"min",$optsline->{constraints}->{max});
+	HomeConnect_setOption($hash,$key,"type",$optsline->{type});
+	HomeConnect_setOption($hash,$key,"prefix",$optsline->{$pref});
+	HomeConnect_setOption($hash,$key,"default",$optsline->{constraints}->{default});
+	HomeConnect_setOption($hash,$key,"update",$optsline->{constraints}->{liveupdate});
+	HomeConnect_setOption($hash,$key,"exec",$optsline->{constraints}->{execution});
   }
 
 #-- hash->{data}->options} is for control of the parameters, $hash->{options} for overview, $hash->{optlist} for HTML
@@ -2045,6 +2062,12 @@ sub HomeConnect_ResponseGetProgramOptions {
 	Log3 $name, 1, $msg;
 	return $msg;
   }
+}
+
+sub HomeConnect_setOption($$$$) {
+  my ($hash,$key,$target,$value) = @_;
+  return if (!defined $value or $value eq "");
+  $hash->{data}->{option}->{$key}->{$target}=$value;
 }
 
 ##############################################################################
