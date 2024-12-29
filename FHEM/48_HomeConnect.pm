@@ -281,6 +281,7 @@ $HomeConnect_DeviceTrans_DE{"Dryer"} = {
   "Synthetic"      => "Synthetik",
   "Mix"            => "Mix",
   "Dessous"        => "Unterwäsche",
+  "Delicates"	   => "Extra Fein",
   "TimeCold"       => "Kalt",
   "TimeWarm"       => "Warm",
   "Hygiene"        => "Hygiene",
@@ -373,9 +374,6 @@ $HomeConnect_DevicePrefix{"CleaningRobot"}   = "ConsumerProducts.CleaningRobot";
 $HomeConnect_DevicePowerOff{"CleaningRobot"} = "PowerOff";
 $HomeConnect_DeviceEvents{"CleaningRobot"} =  [ "EmptyDustBoxAndCleanFilter", "RobotIsStuck", "DockingStationNotFound" ];
 $HomeConnect_DeviceTrans_DE{"CleaningRobot"} = {};
-
-#-- some global parameters
-my $HC_delayed_PS;
 
 ###############################################################################
 #
@@ -624,9 +622,8 @@ sub HomeConnect_Response() {
 	}
 
 	#-- no error, but possibly some additional things to do
-    if ( defined($HC_delayed_PS) && $HC_delayed_PS ne "0" ) {
+    if ( defined($hash->{helper}->{updatePO}) && $hash->{helper}->{updatePO} ne "0" ) {
 	  HomeConnect_FileLog($hash,"Response getting Program Options");
-	  $HC_delayed_PS = 0;
 	  HomeConnect_GetProgramOptions($hash);
 	}
   }
@@ -748,21 +745,19 @@ sub HomeConnect_Set($@) {
   my $operationState = HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.OperationState", "" );
   #$pgmRunning=1 if (HomeConnect_ReadingsVal($hash,"BSH.Common.Root.ActiveProgram","") ne "");
   #Do not count DelayedStart as "running" as it is required to "StartProgram" when the delay is changed
-  my $pgmRunning = $operationState =~ /((Active)|(Run)|(Pause))/;
+  my $pgmRunning = $operationState =~ /((Active)|(Run)|(Pause)|(DelayedStart))/;
   my $remoteStartAllowed=HomeConnect_ReadingsVal($hash,"BSH.Common.Status.RemoteControlStartAllowed",0);
 
 #-- no programs for freezers, fridge freezers, refrigerators and wine coolers
 #   and due to API restrictions, wwe may also not set the programs for Hob and Oven
   if ( $hash->{type} !~ /(Hob)|(Oven)|(FridgeFreezer)/ ) {
-	  if ($pgmRunning) {
-		$availableCmds .= " StopProgram:noArg";
-		$availableCmds .= " PauseProgram:noArg";
-		$availableCmds .= " ResumeProgram:noArg";
+	$availableCmds .= " StopProgram:noArg" if ($operationState =~ /((Active)|(Run)|(Pause)|(DelayedStart))/);
+	$availableCmds .= " PauseProgram:noArg" if ($operationState =~ /((Active)|(Run))/);
+	$availableCmds .= " ResumeProgram:noArg" if ($operationState =~ /(Pause)/);
 
-	  }elsif ($remoteStartAllowed) {
-		$availableCmds .= " StartProgram:noArg";
-		$availableCmds .= " SelectedProgram:$programs";
-	  }
+	$availableCmds .= " StartProgram:noArg" if ($remoteStartAllowed and $operationState =~ /(Active)/);
+
+	$availableCmds .= " SelectedProgram:$programs" if ($operationState =~ /(Active)/);;
   }
 
 #-- available settings ----------------------------------------------------------------------
@@ -1076,7 +1071,7 @@ sub HomeConnect_Set($@) {
 	};
 
 	#-- make sure that after selecting also GetProgramOptions is called
-	$HC_delayed_PS = 1;
+	$hash->{helper}->{updatePO} = 1;
 	#HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Status.SelectedProgram", $program, 1 );
 
 	Log3 $name, 1, "[HomeConnect] selecting program $program with uri " . $data->{uri} . " and data " . $data->{data};
@@ -1143,8 +1138,7 @@ sub HomeConnect_PowerState($$) {
   }
 
   #-- send the update
-  my $json =
-"{\"data\":{\"key\":\"BSH.Common.Setting.PowerState\",\"value\":\"BSH.Common.EnumType.PowerState.$target\"}}";
+  my $json = "{\"data\":{\"key\":\"BSH.Common.Setting.PowerState\",\"value\":\"BSH.Common.EnumType.PowerState.$target\"}}";
   my $data = {
 	callback => \&HomeConnect_Response,
 	uri => "/api/homeappliances/$haId/settings/BSH.Common.Setting.PowerState",
@@ -1894,6 +1888,7 @@ sub HomeConnect_GetProgramOptions {
 	callback => \&HomeConnect_ResponseGetProgramOptions,
 	uri      => "/api/homeappliances/$hash->{haId}/programs/available/$program"
   };
+  $hash->{helper}->{updatePO}=0; #Clear Request Flag
   HomeConnect_request( $hash, $data );
 
   Log3 $name, 5, "[HomeConnect_GetProgramOptions] $name: getting options with uri " . $data->{uri};
@@ -2092,7 +2087,7 @@ sub HomeConnect_checkState($) {
   my $sta = HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.StartAtHHMM", "0:00" );
   my $door = HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.DoorState", "closed" );
 
-  Log3 $name, 1, "[HomeConnect_checkState] from s:$currentstate d:$door o:$operationState";
+  HomeConnect_FileLog($hash, "[HomeConnect_checkState] from s:$currentstate d:$door o:$operationState");
 
   my $state1 = "";
   my $state2 = "";
@@ -2106,8 +2101,7 @@ sub HomeConnect_checkState($) {
 	$state2 = "$tim";
 	if ($currentstate ne $state and $program ne "") {
 		#state changed into running - now get the program options that might only be valid during run (e.g. SilenceOnDemand)
-		  $HC_delayed_PS = 0; #Clear request for program options just in case, as we do it anyway
-	      HomeConnect_GetProgramOptions($hash);
+		  $hash->{helper}->{updatePO} = 1; 
 	}
   }
   if ( $operationState =~ /Pause/ ) {
@@ -2151,7 +2145,7 @@ sub HomeConnect_checkState($) {
 	$state2 = "-";
   }
 
-  Log3 $name, 1, "[HomeConnect_checkState] to s:$state d:$door 1:$state1 2:$state2";
+  HomeConnect_FileLog($hash, "[HomeConnect_checkState] to s:$state d:$door 1:$state1 2:$state2");
   
   #Correct special characters if using encoding=unicode
   $state1 = decode_utf8($state1) if $unicodeEncoding;
@@ -2168,7 +2162,11 @@ sub HomeConnect_checkState($) {
   readingsBulkUpdate( $hash, "state2",  $state2 );
   HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Status.OperationState",  $operationState ) if $operationState ne $orgOpSt;
   readingsEndUpdate( $hash, 1 );
+
+  HomeConnect_GetProgramOptions($hash) if ($hash->{helper}->{updatePO} and $hash->{helper}->{updatePO} ne 0); 
 }
+
+
 
 ##############################################################################
 #
@@ -2565,14 +2563,16 @@ sub HomeConnect_ReadEventChannel($) {
 		  }
 		  $checkstate = 1;
 		} elsif ( $key =~ /ActiveProgram/ ) {
+		} elsif ( $key =~ /PowerState/ ) {
+		  $checkstate=1; # Update state on power change
+		  $hash->{helper}->{updatePO}=1; 
 		} elsif ( $key =~ /EstimatedTotalProgramTime/ ) {
 		  #If the device estimates the total time, the FinishInRelative would contain some potential garbage number - reset
 		  HomeConnect_readingsSingleUpdate( $hash,"BSH.Common.Option.FinishInRelative",0,1);
 		  $checkstate=1;
 		} elsif ( $key =~ /SelectedProgram/ ) {
-		#Looks like set selectedprogram does not necessarly get a response callback, so react on the event 
-		  $HC_delayed_PS = 0; #Clear request for program options just in case, as we do it anyway
-	      HomeConnect_GetProgramOptions($hash);
+		#Need to get program options when changing program
+		  $hash->{helper}->{updatePO} = 1;
 		}	elsif ( $key =~ /RemainingProgramTime/ ) {
 		  my $h    = int( $value / 3600 );
 		  my $m    = ceil( ( $value - 3600 * $h ) / 60 );
@@ -2583,7 +2583,7 @@ sub HomeConnect_ReadEventChannel($) {
 		  $checkstate = 1;
 		}
 		elsif ( $key =~ /StartInRelative/ ) {
-		  $value =~ s/\t.*//; # remove seconds
+		  $value =~ s/\s.*//; # remove seconds
 		  my $h    = int( $value / 3600 );
 		  my $m    = ceil( ( $value - 3600 * $h ) / 60 );
 		  my $tim2 = sprintf( "%d:%02d", $h, $m );
@@ -2592,7 +2592,7 @@ sub HomeConnect_ReadEventChannel($) {
 		  my ( $startmin, $starthour ) =
 			( localtime( time + $value ) )[ 1, 2 ];
 		  my $delta = HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.RemainingProgramTime", 0 );
-		  $delta =~ s/\t.*//; # remove seconds
+		  $delta =~ s/\s.*//; # remove seconds
 		  #TODO: test number
 		  my ( $endmin, $endhour ) =
 			( localtime( time + $value + $delta ) )[ 1, 2 ];
@@ -2605,7 +2605,7 @@ sub HomeConnect_ReadEventChannel($) {
 		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.StartToHHMM", $tim4 );
 		}
 		elsif ( $key =~ /FinishInRelative/ ) {
-		  $value =~ s/\t.*//; # remove seconds
+		  $value =~ s/\s.*//; # remove seconds
 		  my $h    = int( $value / 3600 );
 		  my $m    = ceil( ( $value - 3600 * $h ) / 60 );
 		  my $tim2 = sprintf( "%d:%02d", $h, $m );
@@ -2730,7 +2730,7 @@ sub HomeConnect_readingsUpdate($$$$$) {
   if ($sreading =~ $trans) {
 	my $lvalue=lc $nvalue;
 	my $tvalue=$nvalue;
-    $tvalue =~ /\t.*/; #When translating also remove " %", " seconds", " °C" etc. to create a plain value
+    $tvalue =~ /\s.*/; #When translating also remove " %", " seconds", " °C" etc. to create a plain value
 	$tvalue=$HC_table{DE}{$lvalue} if (defined $HC_table{DE}{$lvalue});
 	#In case user wants the program name, try that as well:
 	$tvalue=$hash->{data}->{trans}->{$nvalue} if (defined( $hash->{data}->{trans}->{$nvalue}));
