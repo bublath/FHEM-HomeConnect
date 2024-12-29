@@ -152,14 +152,14 @@ $HomeConnect_DevicePrefix{"Dishwasher"}   = "Dishcare.Dishwasher";
 $HomeConnect_DevicePowerOff{"Dishwasher"} = "PowerOff";
 $HomeConnect_DeviceEvents{"Dishwasher"} = [ "SaltNearlyEmpty", "RinseAidNearlyEmpty" ];
 $HomeConnect_DeviceTrans_DE{"Dishwasher"} = {
-  "Eco50"              => "Eco 50",
-  "Auto2"              => "Auto 45-65",
-  "Quick45"            => "Speed 45",
-  "Intensiv70"         => "Intensiv 70",
+  "Eco50"              => "Eco50",
+  "Auto2"              => "Auto45-65",
+  "Quick45"            => "Speed45",
+  "Intensiv70"         => "Intensiv70",
   "PreRinse"           => "Vorspülen",
-  "Kurz60"             => "Speed 60",
+  "Kurz60"             => "Speed60",
   "MachineCare"        => "Maschinenpflege",
-  "GlassShine"         => "Brilliant Shine",
+  "GlassShine"         => "BrilliantShine",
   "Favorite.001"       => "Favorit",
   "NightWash"          => "Leise",
   "LearningDishwasher" => "LearningDishwasher",
@@ -254,20 +254,22 @@ $HomeConnect_DevicePowerOff{"Washer"} = "PowerOff";
 $HomeConnect_DeviceEvents{"Washer"} = [ "IDos1FillLevelPoor", "IDos2FillLevelPoor" ];
 $HomeConnect_DeviceTrans_DE{"Washer"} = {
   "Cotton"                => "Baumwolle",
-  "Cotton.Eco4060"        => "Baumwolle.Eco5060",
-  "Super153045.Super1530" => "Super",
-  "EasyCare"              => "Leichte Pflege",
-  "Mix"                   => "Gemischt",
-  "DelicateSilk"          => "Feine Seide",
+  "Cotton.Eco4060"        => "Baumwolle_Eco5060",
+  "Super153045.Super1530" => "Super15/30",
+  "EasyCare"              => "Pflegeleicht",
+  "Mix"                   => "Schnell/Mix",
+  "DelicateSilk"          => "Fein/Seide",
   "Wool"                  => "Wolle",
   "SportFitness"          => "Sportsachen",
-  "Sensitive"             => "Empfindliche Wäsche",
+  "Outdoor"               => "Outdoor",
+  "Sensitive"             => "Empfindliche_Wäsche",
   "ShirtsBlouses"         => "Hemden",
-  "DarkWash"              => "Dunkle Wäsche",
+  "DarkWash"              => "Dunkle_Wäsche",
   "Mix.Nightwash"         => "Nachtwäsche",
   "Towels"                => "Handtücher",
   "DownDuvet.Duvet"       => "Bettdecke",
-  "DrumClean"             => "Trommelreinigung"
+  "DrumClean"             => "Trommelreinigung",
+  "PowerSpeed59"		  => "powerSpeed59"
 };
 
 #-- Dryer
@@ -280,8 +282,9 @@ $HomeConnect_DevicePowerOff{"Dryer"} = "PowerOff";
 $HomeConnect_DeviceEvents{"Dryer"}   = [];
 $HomeConnect_DeviceTrans_DE{"Dryer"} = {
   "Cotton"         => "Baumwolle",
-  "Synthetic"      => "Synthetik",
-  "Mix"            => "Mix",
+  "Cotton.CottonEco" => "Baumwolle Eco",
+  "Synthetic"      => "Pflegeleicht",
+  "Mix"            => "Schnell/Mix",
   "Dessous"        => "Unterwäsche",
   "Delicates"	   => "Extra Fein",
   "TimeCold"       => "Kalt",
@@ -289,9 +292,12 @@ $HomeConnect_DeviceTrans_DE{"Dryer"} = {
   "Hygiene"        => "Hygiene",
   "Super40"        => "Super40",
   "Towels"         => "Handtücher",
-  "Outdoor"        => "Außen",
+  "Outdoor"        => "Outdoor",
   "Pillow"         => "Kopfkissen",
   "Blankets"       => "Laken",
+  "Bedlinens"	   => "Bettwäsche",
+  "Hygiene"        => "Hygiene",
+  "TimeWarm"	   => "Warm/Zeit",
   "BusinessShirts" => "Hemden"
 };
 
@@ -308,13 +314,13 @@ $HomeConnect_DeviceTrans_DE{"WasherDryer"} = {
   "Mix.HHMix.HHMix"                           => "Schnell/Mix",
   "EasyCare.HHSynthetics.HHSynthetics"        => "Pflegeleicht",
   "DelicatesSilk.DelicatesSilk.DelicatesSilk" => "Fein/Seide",
-  "Sensitive.Sensitive.Sensitiv"              => "Hygiene Plus",
-  "RefreshWD.Refresh.Refresh"                 => "Iron Assist",
-  "FastWashDry.WD45.WD45"                     => "Extra Kurz 15/Wash & Dry 45",
+  "Sensitive.Sensitive.Sensitiv"              => "HygienePlus",
+  "RefreshWD.Refresh.Refresh"                 => "IronAssist",
+  "FastWashDry.WD45.WD45"                     => "ExtraKurz15/Wash&Dry45",
   "SportFitness.SportFitness.SportFitness"    => "Sportswear",
   "Wool.Wool.Wool"                            => "Wolle",
   "Cotton.Cotton.Cotton"                      => "Baumwolle",
-  "LabelEU19.LabelEU19.Eco4060"               => "Eco 40-60",
+  "LabelEU19.LabelEU19.Eco4060"               => "Eco40-60",
   "Rinse.Rinse.Rinse"                         => "Spülen",
   "Spin.Spin.SpinDrain"                       => "Schleudern/Abpumpen"
 };
@@ -707,7 +713,7 @@ sub HomeConnect_Set($@) {
   my $programPrefix = $hash->{prefix} . ".Program.";
   my $optionPrefix  = $hash->{prefix} . ".Option.";
 
-  my $availableCmds = "ZZZ_Dump:noArg statusRequest:noArg ";
+  my $availableCmds = "ZZZ_Dump:noArg ";
 
   my $excludes = $attr{$name}{"excludeSetting"};
   $excludes="" if !defined $excludes;
@@ -740,9 +746,15 @@ sub HomeConnect_Set($@) {
 
   #-- programs taken from hash or empty
   my $programs = $hash->{programs};
-  if ( !defined($programs) ) {
-	$programs = "";
+  $programs = "" if !defined($programs);
+  #Translate pulldown options if translation table present
+  if ($hash->{data}->{trans}) {
+	foreach my $tr (keys %{$hash->{data}->{trans}}) {
+		$programs =~ s/$tr/$hash->{data}->{trans}->{$tr}/;
+	}
   }
+  $programs = decode_utf8($programs);# if !($unicodeEncoding);
+  $programs = s/ /_/g; #Safety measure to remove accidential spaces in programnames
   
   my $operationState = HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.OperationState", "" );
   #$pgmRunning=1 if (HomeConnect_ReadingsVal($hash,"BSH.Common.Root.ActiveProgram","") ne "");
@@ -759,7 +771,7 @@ sub HomeConnect_Set($@) {
 
 	$availableCmds .= " StartProgram:noArg" if ($remoteStartAllowed and $operationState =~ /(Ready)/);
 
-	$availableCmds .= " SelectedProgram:$programs" if ($operationState =~ /(Ready)/);;
+	$availableCmds .= " SelectedProgram:$programs" if ($operationState =~ /(Ready)|(Inactive)/);;
   }
 
 #-- available settings ----------------------------------------------------------------------
@@ -874,11 +886,6 @@ sub HomeConnect_Set($@) {
 	  . Dumper( $hash->{data}->{poweroff} );
 
 	#-- powerOn/Off ----------------------------------------------------
-  }
-  elsif ( $command =~ /statusRequest/ ) {
-
-	HomeConnect_UpdateStatus($hash);
-	#HomeConnect_checkState($hash);
   }
   elsif ( $command =~ /AmbientLight/ ) {
 
@@ -1036,11 +1043,7 @@ sub HomeConnect_Set($@) {
 	  uri  => "/api/homeappliances/$haId/settings/BSH.Common.Setting.$command",
 	  data => $json
 	};
-	Log3 $name, 1,
-		"[HomeConnect_Set] changing setting with uri "
-	  . $data->{uri}
-	  . " and data "
-	  . $data->{data};
+	Log3 $name, 1, "[HomeConnect_Set] changing setting with uri " . $data->{uri} . " and data " . $data->{data};
 	HomeConnect_request( $hash, $data );
  #-- select a program ----------------------------------------------------------
   }
@@ -1058,6 +1061,12 @@ sub HomeConnect_Set($@) {
 	  || ( $programs ne "" && index( $programs, $program ) == -1 ) )
 	{
 	  return "[HomeConnect_Set] $name: unknown program $program, choose one of $programs";
+	}
+	
+	#Translate back to get a valid program
+	if ($hash->{data}->{retrans}) {
+		$program = encode_utf8($program);# if !($unicodeEncoding);
+		$program=$hash->{data}->{retrans}->{$program};
 	}
 
 	##### TEMPORARY
@@ -1092,7 +1101,7 @@ sub HomeConnect_Get($@) {
   my $cmd  = $args[1];
 
   #-- check argument
-  my $gets     = "Settings:noArg";
+  my $gets     = "Settings:noArg Status:noArg";
   my $settings = $hash->{settings};
   my $type     = $hash->{type};
   if ( defined($settings) && $type !~ /FridgeFreezer/ ) {
@@ -1114,7 +1123,12 @@ sub HomeConnect_Get($@) {
   }
   elsif ( $cmd eq "Settings" ) {
 	return HomeConnect_GetSettings($hash);
+#-- Request status update ----------------------------------------------------
   }
+  elsif ( $cmd eq "Status" ) {
+	return HomeConnect_UpdateStatus($hash);
+  }
+  
 }
 
 ###############################################################################
@@ -1687,6 +1701,10 @@ sub HomeConnect_ResponseGetSettings {
 
   $hash->{data}->{trans} = $HomeConnect_DeviceTrans_DE{$type}
 	if ( defined $HomeConnect_DeviceTrans_DE{$type} && $isDE );
+	
+  foreach my $key (keys %{$HomeConnect_DeviceTrans_DE{$type}}) {
+	$hash->{data}->{retrans}->{$HomeConnect_DeviceTrans_DE{$type}->{$key}}=$key;
+  }
 
   #-- start the processing
   my $settingsPrefix = $hash->{prefix} . ".Setting.";
@@ -1759,8 +1777,7 @@ sub HomeConnect_GetPrograms {
   my $msg;
 
 #-- we do not get a list of programs if a program is active, so we just use the active program name
-  my $operationState =
-	ReadingsVal( $name, "BSH.Common.Status.OperationState", "" );
+  my $operationState = ReadingsVal( $name, "BSH.Common.Status.OperationState", "" );
   my $activeProgram = ReadingsVal( $name, "BSH.Common.Root.ActiveProgram", "" );
   $activeProgram =~ s/^\s+|\s+$//g;
   if ( $operationState =~ /((Active)|(DelayedStart)|(Run))/ ) {
@@ -1863,16 +1880,14 @@ sub HomeConnect_GetProgramOptions {
   #-- start the processing
   my $programPrefix = $hash->{prefix} . ".Program.";
 
-  #-- first guess selected program
-  my $program =
-	HomeConnect_ReadingsVal( $hash, "BSH.Common.Root.SelectedProgram", "" );
+  #-- first try active program as it might be more accurate than "selected"
+  my $program = HomeConnect_ReadingsVal( $hash, "BSH.Common.Root.ActiveProgram", "" );
   $program =~ s/^\s+|\s+$//g;
   HomeConnect_FileLog($hash, "Program: $program");
   if ( $program eq "" ) {
 
-	#-- 2nd guess active program
-	$program =
-	  HomeConnect_ReadingsVal( $hash, "BSH.Common.Root.ActiveProgram", "" );
+	#-- 2nd guess with selected program
+    $program =	HomeConnect_ReadingsVal( $hash, "BSH.Common.Root.SelectedProgram", "" );
 	$program =~ s/^\s+|\s+$//g;
 
 	#-- failure
@@ -1881,10 +1896,6 @@ sub HomeConnect_GetProgramOptions {
 	  readingsSingleUpdate( $hash, "lastErr", "No programs selected or active", 1 );
 	  Log3 $name, 1, $msg;
 	  return $msg;
-	}
-	else {
-	  $msg = "[HomeConnect_GetProgramOptions] $name: getting options for active program $program instead of selected";
-	  Log3 $name, 1, $msg;
 	}
   }
 
@@ -2099,13 +2110,14 @@ sub HomeConnect_checkState($) {
   }
   my $pct =	HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.ProgramProgress", "0" );
   $pct =~ s/ \%.*//;
-  $operationState = "Finished" if ( $pct == 100 ); #Some devices don't put a proper finish message when done
+  #My Washer sets pct to 100 some time ahead of Finished
+  #$operationState = "Finished" if ( $pct == 100 ); #Some devices don't put a proper finish message when done
   
   my $tim = HomeConnect_ReadingsVal( $hash,	"BSH.Common.Option.RemainingProgramTimeHHMM", "0:00" );
   my $sta = HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.StartAtHHMM", "0:00" );
   my $door = HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.DoorState", "closed" );
 
-  HomeConnect_FileLog($hash, "[HomeConnect_checkState] from s:$currentstate d:$door o:$operationState");
+  HomeConnect_FileLog($hash, "[HomeConnect_checkState] from s:$currentstate d:$door o:$orgOpSt");
 
   my $state1 = "";
   my $state2 = "";
@@ -2169,7 +2181,7 @@ sub HomeConnect_checkState($) {
 	$state2 = "-";
   }
 
-  HomeConnect_FileLog($hash, "[HomeConnect_checkState] to s:$state d:$door 1:$state1 2:$state2");
+  HomeConnect_FileLog($hash, "[HomeConnect_checkState] to s:$state d:$door o:$operationState 1:$state1 2:$state2");
   
   #Correct special characters if using encoding=unicode
   $state1 = decode_utf8($state1) if $unicodeEncoding;
@@ -2189,7 +2201,7 @@ sub HomeConnect_checkState($) {
 
   HomeConnect_GetProgramOptions($hash) if ($hash->{helper}->{updatePO} and $hash->{helper}->{updatePO} ne 0); 
   #If stopProgram is done, retry to set delay
-  if ($hash->{helper}->{autostart}==2 and $hash->{helper}->{delay}) {
+  if ($hash->{helper}->{autostart} and $hash->{helper}->{autostart}==2 and $hash->{helper}->{delay}) {
 	  my @args=split(",",$hash->{helper}->{delay});
 	  HomeConnect_delayTimer($hash,$args[0],$args[1],$args[2]);
 	  delete $hash->{helper}->{delay};
@@ -2557,7 +2569,8 @@ sub HomeConnect_ReadEventChannel($) {
 		Log3 $name, 2, "[HomeConnect_ReadEventChannel] $name: JSON error reading from event channel";
 		return;
 	  }
-	HomeConnect_FileLog($hash,"Event:".Dumper($jhash));
+	  my $operationState = HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.OperationState", "" );
+	  HomeConnect_FileLog($hash,"Event:".Dumper($jhash));
 
 	  my $isfinished = 0;
 	  my $isalarmoff = 0;
@@ -2591,12 +2604,14 @@ sub HomeConnect_ReadEventChannel($) {
 		  }
 		  $checkstate = 1;
 		} elsif ( $key =~ /ActiveProgram/ ) {
+		  $checkstate=1;
+		  #HomeConnect_readingsBulkUpdate( $hash,"BSH.Common.Status.OperationState","run") if $operationState eq "Ready";;
 		} elsif ( $key =~ /PowerState/ ) {
 		  $checkstate=1; # Update state on power change
 		  $hash->{helper}->{updatePO}=1; 
 		} elsif ( $key =~ /EstimatedTotalProgramTime/ ) {
 		  #If the device estimates the total time, the FinishInRelative would contain some potential garbage number - reset
-		  HomeConnect_readingsSingleUpdate( $hash,"BSH.Common.Option.FinishInRelative",0,1);
+		  HomeConnect_readingsBulkUpdate( $hash,"BSH.Common.Option.FinishInRelative",0);
 		  $checkstate=1;
 		} elsif ( $key =~ /SelectedProgram/ ) {
 		#Need to get program options when changing program
