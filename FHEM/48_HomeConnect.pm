@@ -753,8 +753,8 @@ sub HomeConnect_Set($@) {
 		$programs =~ s/$tr/$hash->{data}->{trans}->{$tr}/;
 	}
   }
-  $programs = decode_utf8($programs);# if !($unicodeEncoding);
-  $programs = s/ /_/g; #Safety measure to remove accidential spaces in programnames
+  $programs = decode_utf8($programs) if ($unicodeEncoding);
+  $programs =~ s/ /_/g; #Safety measure to remove accidential spaces in programnames
   
   my $operationState = HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.OperationState", "" );
   #$pgmRunning=1 if (HomeConnect_ReadingsVal($hash,"BSH.Common.Root.ActiveProgram","") ne "");
@@ -1065,7 +1065,7 @@ sub HomeConnect_Set($@) {
 	
 	#Translate back to get a valid program
 	if ($hash->{data}->{retrans}) {
-		$program = encode_utf8($program);# if !($unicodeEncoding);
+		$program = encode_utf8($program) if ($unicodeEncoding);
 		$program=$hash->{data}->{retrans}->{$program};
 	}
 
