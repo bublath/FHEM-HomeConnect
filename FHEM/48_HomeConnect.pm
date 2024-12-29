@@ -82,7 +82,8 @@ my %HC_table = (
   "idle"        => "Bereit",
   "door"        => "Tür",
   "on"			=> "An",
-  "off"			=> "Aus"
+  "off"			=> "Aus",
+  "autostart"   => "Autostart"
 	},
 	"EN" => {
   "ok"          => "OK",
@@ -120,7 +121,8 @@ my %HC_table = (
   "idle"        => "idle",               #state
   "door"        => "door",
   "on"			=> "on",
-  "off"			=> "off"
+  "off"			=> "off",
+  "autostart"   => "autostart"
 	}
 );
 
@@ -2066,7 +2068,8 @@ sub HomeConnect_checkState($) {
 
   my $aprogram = HomeConnect_ReadingsVal( $hash, "BSH.Common.Root.ActiveProgram", "" );
   my $sprogram = HomeConnect_ReadingsVal( $hash, "BSH.Common.Root.SelectedProgram", "" );
-
+  my $remoteStartAllowed=HomeConnect_ReadingsVal($hash,"BSH.Common.Status.RemoteControlStartAllowed",0);
+  
   #-- active program missing
   if ( $aprogram eq "" && $operationState eq "Run" ) {
 	$aprogram = $sprogram;
@@ -2147,9 +2150,15 @@ sub HomeConnect_checkState($) {
 		$state1 = $HC_table{$lang}->{$state};
 		$state2 = "-";
 	} else {
+	  if ($remoteStartAllowed) {
+		$state = "auto";
+		$state1 = $HC_table{$lang}->{"autostart"};
+		$state2 = "-";
+	  } else {
 		$state  = "idle";
 		$state1 = $HC_table{$lang}->{$state};
 		$state2 = "-";
+	  }
 	}
   }
 
