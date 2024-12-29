@@ -902,7 +902,7 @@ sub HomeConnect_Set($@) {
   {
 	#return "[HomeConnect] $name: cannot set delay timer, device powered off"
 	#  if (!$powerOn);
-	HomeConnect_delayTimer( $hash, $command, $a[0] );
+	HomeConnect_delayTimer( $hash, $command, $a[0], $a[1] );
 
 	#-- AlarmClock -----------------------------------------------------
   }
@@ -944,7 +944,7 @@ sub HomeConnect_Set($@) {
   }
   elsif ( $command eq "StopProgram" ) {
 	return "[HomeConnect_Set] $name: cannot stop, no program is running"
-	  if ( !$pgmRunning );
+	  if ( !$pgmRunning and $operationState !~ /(DelayedStart)/);
 	my $data = {
 	  callback => \&HomeConnect_Response,
 	  uri      => "/api/homeappliances/$haId/programs/active"
@@ -1255,8 +1255,8 @@ sub HomeConnect_alarmTimer($$$) {
 #
 ###############################################################################
 
-sub HomeConnect_delayTimer($$$) {
-  my ( $hash, $command, $value ) = @_;
+sub HomeConnect_delayTimer($$$$) {
+  my ( $hash, $command, $value, $start ) = @_;
 
   my $name = $hash->{NAME};
   my $haId = $hash->{haId};
@@ -1360,7 +1360,7 @@ sub HomeConnect_delayTimer($$$) {
 	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.FinishAtHHMM", $endtime );
 	readingsEndUpdate( $hash, 1 );
 	Log3 $name, 1, "[HomeConnect_delayTimer] $name: startInRelative set to $startinrelative";
-
+    HomeConnect_startProgram($hash) if (defined $start and $start eq "start");
 	#-- device has option FinishInRelative
   }
   else {
@@ -1373,6 +1373,7 @@ sub HomeConnect_delayTimer($$$) {
 	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.FinishAtHHMM", $endtime );
 	readingsEndUpdate( $hash, 1 );
 	Log3 $name, 1, "[HomeConnect_delayTimer] $name: finishInRelative set to $endinrelative";
+	HomeConnect_startProgram($hash) if (defined $start and $start eq "start");
   }
 }
 
@@ -2898,20 +2899,23 @@ sub HomeConnect_State($$$$) {			#reload readings at FHEM start
   Further settings might appear after "Settings" or "ProgramOptions" get queried. These are created dynamically and it is impossible to document them all. Listing some special cases and ones known by the author here.<br>
   <h3>General - supported by multiple devices</h3>
   <ul>
-  	<li><b>set DelayEndTime &lt;HH:MM&gt; </b><br>
+  	<li><b>set DelayEndTime &lt;HH:MM&gt; [start]</b><br>
 			<a id="HomeConnect-set-DelayEndTime"></a>
 			If device supports "startInRelative" or "finishInRelative" and device is set to "remoteStartAllowed"<br>
-			Delay the start of the device, so it will likely finish at the given time.
+			Delay the start of the device, so it will likely finish at the given time.<br>
+			If the optional argument "start" is given, the appliance will set into DelayedStart mode right away. For some appliances you might need to "StopProgram" before you can manually operated it again.
 			</li>
-	<li><b>set DelayRelative &lt;HH:MM&gt; </b><br>
+	<li><b>set DelayRelative &lt;HH:MM&gt; [start]</b><br>
 			<a id="HomeConnect-set-DelayRelative"></a>
 			If device supports "startInRelative" or "finishInRelative" and device is set to "remoteStartAllowed"<br>
 			Delays the start of the device by the specified time.
+			If the optional argument "start" is given, the appliance will set into DelayedStart mode right away. For some appliances you might need to "StopProgram" before you can manually operated it again.
 	</li>
-	<li><b>set DelayStartTime &lt;HH:MM&gt; </b><br>
+	<li><b>set DelayStartTime &lt;HH:MM&gt; [start]</b><br>
 			<a id="HomeConnect-set-DelayStartTime"></a>
 			If device supports "startInRelative" or "finishInRelative" and device is set to "remoteStartAllowed"<br>
 			Delays the finish time of the device by the specified time.
+			If the optional argument "start" is given, the appliance will set into DelayedStart mode right away. For some appliances you might need to "StopProgram" before you can manually operated it again.
 	</li>
   </ul>
   <h3>Device specific</h3>
