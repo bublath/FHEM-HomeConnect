@@ -2380,7 +2380,8 @@ sub HomeConnect_ReadEventChannel($) {
 		  $checkstate=1;
 		} elsif ( $key =~ /ActiveProgram/ ) {
 		  #Remember previous active program
-		  $hash->{helper}->{ActiveProgram}=HomeConnect_ReadingsVal( $hash, "BSH.Common.Settings.ActiveProgram",""); 
+		  my $prev=HomeConnect_ReadingsVal( $hash, "BSH.Common.Setting.ActiveProgram","");
+		  $hash->{helper}->{ActiveProgram}=$prev if $prev; #ActiveProgram might become empty (reason not understood)
 		  $checkstate=1;
 		} elsif ( $key =~ /PowerState/ ) {
 		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Setting.ActiveProgram", undef) if ($value =~/Off/);
@@ -2394,10 +2395,10 @@ sub HomeConnect_ReadEventChannel($) {
 		  $hash->{helper}->{updatePO} = 1 if $value;
 		  #This is the case, when a program gets stopped to set a different delay. Set the previous active program instead of the "default"
 		  $value=$hash->{helper}->{ActiveProgram} if ($hash->{helper}->{ActiveProgram} and $hash->{helper}->{autostart});
-		  delete $hash->{helper}->{ActiveProgram};
+		  #delete $hash->{helper}->{ActiveProgram};
 		  #If Active Program is set when a new program is selected and operationState is not running, this probably is a error
 		  if ($operationState =~ /Ready|Inactive/ and HomeConnect_ReadingsVal( $hash, "BSH.Common.Setting.ActiveProgram", "" ) ne "") {
-			HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Settings.ActiveProgram", undef );
+			HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Setting.ActiveProgram", undef );
 		  }
 		}
 		elsif ( $key =~ /StartInRelative/ ) {
