@@ -2004,7 +2004,7 @@ sub HomeConnect_CheckState($) {
 	$state1 = $HC_table{$lang}->{$state};
 	$state2 = "-";
   }
-  if ( $operationState =~ /(Ready)|(Inactive)|(Offline)|(Finished)/ ) {
+  if ( $operationState =~ /(Ready)|(Inactive)|(Offline)/ ) {
 	if ($currentstate eq "done" and $door =~ /Closed/) {
 		#Delay switching to "idle" until door gets opened so user continues to get indication that appliance needs to be emptied, even when it goes to "off" automatically
 		$state  = "done";
@@ -2028,6 +2028,7 @@ sub HomeConnect_CheckState($) {
 	$state  = "idle" if $state eq "done";
 	$state1 = $HC_table{$lang}->{"door"} . " " . $HC_table{$lang}->{ lc $door };
 	$state2 = "-";
+	$operationState = "Ready" if $operationState =~/Finished/; # There might be no event setting Finished -> Ready when Finished was by set by FHEM
   }
 
   HomeConnect_FileLog($hash, "[HomeConnect_CheckState] to s:$state d:$door o:$operationState 1:$state1 2:$state2");
