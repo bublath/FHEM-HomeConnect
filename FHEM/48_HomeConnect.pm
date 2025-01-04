@@ -147,7 +147,7 @@ my %HomeConnect_DeviceTrans_DE;
 #   known programs Intensiv70,Auto2,Eco50,Quick45,PreRinse,NightWash,Kurz60,MachineCare
 #   program downwloads: LearningDishwasher,QuickD
 #   known problems: Option SilenceOnDemand only available when program is running
-$HomeConnect_DeviceSettings{"Dishwasher"} = [ "ChildLock:on,off", "PowerState" ];
+$HomeConnect_DeviceSettings{"Dishwasher"} = [ "ChildLock:On,Off", "PowerState" ];
 $HomeConnect_DevicePrefix{"Dishwasher"}   = "Dishcare.Dishwasher";
 $HomeConnect_DevicePowerOff{"Dishwasher"} = "PowerOff";
 $HomeConnect_DeviceEvents{"Dishwasher"} = [ "SaltNearlyEmpty", "RinseAidNearlyEmpty" ];
@@ -222,7 +222,7 @@ $HomeConnect_DeviceTrans_DE{"Oven"} = {
 #-- Refrigerator
 #  known settings SetpointTemperatureRefrigerator,SuperModeRefrigerator,AssistantFridge,AssistantForceFridge
 #  no programs !
-$HomeConnect_DeviceSettings{"Refrigerator"} = [ "ChildLock:on,off", "PowerState" ];
+$HomeConnect_DeviceSettings{"Refrigerator"} = [ "ChildLock:On,Off", "PowerState" ];
 $HomeConnect_DevicePrefix{"Refrigerator"}   = "Refrigeration.FridgeFreezer";
 $HomeConnect_DevicePowerOff{"Refrigerator"} = undef;
 $HomeConnect_DeviceEvents{"Refrigerator"}   = ["DoorAlarmRefrigerator"];
@@ -236,7 +236,7 @@ $HomeConnect_DeviceTrans_DE{"Refrigerator"} = {
 #-- FridgeFreezer
 #  known settings
 #  no programs !
-$HomeConnect_DeviceSettings{"FridgeFreezer"} = [ "ChildLock:on,off", "PowerState" ];
+$HomeConnect_DeviceSettings{"FridgeFreezer"} = [ "ChildLock:On,Off", "PowerState" ];
 $HomeConnect_DevicePrefix{"FridgeFreezer"}   = "Refrigeration.FridgeFreezer";
 $HomeConnect_DevicePowerOff{"FridgeFreezer"} = undef;
 $HomeConnect_DeviceEvents{"FridgeFreezer"} = [ "DoorAlarmFreezer", "DoorAlarmRefrigerator", "TemperatureAlarmFreezer" ];
@@ -248,7 +248,7 @@ $HomeConnect_DeviceTrans_DE{"FridgeFreezer"} = {};
 #  known programs NEW: Mix.NightWash,Towels,DownDuvet.Duvet,DrumClean
 #  known problems: program contains "."
 #  special types (LaundryCare.Washer.EnumType.) SpinSpeed, Temperature
-$HomeConnect_DeviceSettings{"Washer"} = [ "ChildLock:on,off", "PowerState" ];
+$HomeConnect_DeviceSettings{"Washer"} = [ "ChildLock:On,Off", "PowerState" ];
 $HomeConnect_DevicePrefix{"Washer"}   = "LaundryCare.Washer";
 $HomeConnect_DevicePowerOff{"Washer"} = "MainsOff";
 $HomeConnect_DeviceEvents{"Washer"} = [ "IDos1FillLevelPoor", "IDos2FillLevelPoor" ];
@@ -278,7 +278,7 @@ $HomeConnect_DeviceTrans_DE{"Washer"} = {
 #   known settings
 #   known programs Cotton,Syntetic,Mix,Dessous,TimeCold,TimeWarm,Hygiene,Super40,Towels,Outdoor,Pillow,Blankets,BusinessShirts
 # special types: (LaundryCare.Dryer.EnumType.)DryingTarget.CupboardDry,WrinkleGuard.Min60
-$HomeConnect_DeviceSettings{"Dryer"} = [ "ChildLock:on,off", "PowerState" ];
+$HomeConnect_DeviceSettings{"Dryer"} = [ "ChildLock:On,Off", "PowerState" ];
 $HomeConnect_DevicePrefix{"Dryer"}   = "LaundryCare.Dryer";
 $HomeConnect_DevicePowerOff{"Dryer"} = "PowerOff";
 $HomeConnect_DeviceEvents{"Dryer"}   = [];
@@ -308,7 +308,7 @@ $HomeConnect_DeviceTrans_DE{"Dryer"} = {
 #  known programs Eco4060,Cotton,EasyCare,Mix,DelicatesSilk,Wool,FastWashDry45,SportFitness,Synthetics,Refresh,SpinDrain,Rinse
 #  known problems: program contains "."
 #  special types (LaundryCare.WasherDryer.EnumType.) SpinSpeed, Temperature
-$HomeConnect_DeviceSettings{"WasherDryer"} = [ "ChildLock:on,off", "PowerState" ];
+$HomeConnect_DeviceSettings{"WasherDryer"} = [ "ChildLock:On,Off", "PowerState" ];
 $HomeConnect_DevicePrefix{"WasherDryer"}   = "LaundryCare.WasherDryer";
 $HomeConnect_DevicePowerOff{"WasherDryer"} = "PowerOff";
 $HomeConnect_DeviceEvents{"WasherDryer"}   = [];
@@ -336,7 +336,7 @@ $HomeConnect_DeviceTrans_DE{"WasherDryer"} = {
 #   known settings settings ChildLock,PowerState,CupWarmer
 #   known programs (ConsumerProducts.CoffeeMaker.Program.Beverage.) Coffee,... (ConsumerProducts.CoffeeMaker.Program.CoffeeWorld.)KleinerBrauner
 #   special types (ConsumerProducts.CoffeeMaker.EnumType.) BeanAmount, FlowRate, BeanContainerSelection
-$HomeConnect_DeviceSettings{"CoffeeMaker"} = [ "ChildLock:on,off", "PowerState", "CupWarmer" ];
+$HomeConnect_DeviceSettings{"CoffeeMaker"} = [ "ChildLock:On,Off", "PowerState", "CupWarmer" ];
 $HomeConnect_DevicePrefix{"CoffeeMaker"}   = "ConsumerProducts.CoffeeMaker";
 $HomeConnect_DevicePowerOff{"CoffeeMaker"} = "PowerStandby";
 $HomeConnect_DeviceEvents{"CoffeeMaker"} = [ "BeanContainerEmpty", "WaterTankEmpty", "DripTrayFull" ];
@@ -408,6 +408,7 @@ sub HomeConnect_Initialize($) {
 	. "logfile: "
 	. "excludeSettings: "
 	. "extraOptions: "
+	. "extraInfo:0,1 "
 	. $readingFnAttributes;
   return;
 }
@@ -799,10 +800,11 @@ sub HomeConnect_Set($@) {
   $programs =~ s/ /_/g; #Safety measure to remove accidential spaces in programnames
   
   my $operationState = HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.OperationState", "" );
-  #$pgmRunning=1 if (HomeConnect_ReadingsVal($hash,"BSH.Common.Setting.ActiveProgram","") ne "");
-  #Do not count DelayedStart as "running" as it is required to "StartProgram" when the delay is changed
+ 
+ #Do not count DelayedStart as "running" as it is required to "StartProgram" when the delay is changed
   my $pgmRunning = $operationState =~ /((Active)|(Run)|(Pause))/;
-  my $remoteStartAllowed=HomeConnect_ReadingsVal($hash,"BSH.Common.Status.RemoteControlStartAllowed",0);
+  my $remoteStartAllowed=HomeConnect_ReadingsVal($hash,"BSH.Common.Status.RemoteControlStartAllowed","Off");
+  $remoteStartAllowed=($remoteStartAllowed eq "On"?1:0);
 
 #-- no programs for freezers, fridge freezers, refrigerators and wine coolers
 #   and due to API restrictions, wwe may also not set the programs for Hob and Oven
@@ -826,9 +828,8 @@ sub HomeConnect_Set($@) {
 		  if ( $key =~ /((StartInRelative)|(FinishInRelative))/ ) {
 			push(@cmds,"DelayStartTime:time DelayEndTime:time DelayRelative:time") if $remoteStartAllowed;
 		  } else {
-			$availableOpts .= $key;
 			my $values=$hash->{data}->{options}->{$key}->{values};
-			$availableOpts .= ":".$values." " if $values;
+			$availableOpts .= $key.":".$values." " if $values;
 		  }
 		}
 	}
@@ -846,7 +847,8 @@ sub HomeConnect_Set($@) {
 		  } else {
 			$availableOpts .= $key;
 			my $values=$hash->{data}->{settings}->{$key}->{values};
-			$availableOpts .= ":".$values." " if $values;
+			$availableOpts .= ":".$values if $values;
+			$availableOpts .= " ";
 		  }
 		}
 	}
@@ -1002,10 +1004,6 @@ sub HomeConnect_Set($@) {
 	  uri      => "/api/homeappliances/$haId/programs/selected",
 	  data     => "{\"data\":{\"key\":\"$programPrefix$program\"}}"
 	};
-
-	#-- make sure that after selecting also GetProgramOptions is called
-	#$hash->{helper}->{updatePO} = 1; #No! If selectedProgram fails, this should not be done
-	#HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Status.SelectedProgram", $program, 1 );
 
 	Log3 $name, 1, "[HomeConnect] selecting program $program with uri " . $data->{uri} . " and data " . $data->{data};
 	HomeConnect_Request( $hash, $data );
@@ -1292,10 +1290,12 @@ sub HomeConnect_DelayTimer($$$$) {
 	  callback => \&HomeConnect_Response,
 	  uri      => "/api/homeappliances/$haId/programs/active"
 	  };
-	  HomeConnectConnection_delrequest( $hash, $data );
 	  $hash->{helper}->{autostart}=1;
+	  HomeConnectConnection_delrequest( $hash, $data );
+	  HomeConnect_FileLog($hash,"Stopping current program to restart with delay $command $value");
 	  #Remember the desired setting as "stopProgram" will reset StartInRelative to 0
 	  #Once stop is confirmed (opeationState == Ready) the ReadEventChannel will set autostart to 2 and call this function again
+	  $start="start"; #if already in delayedstart, start again right away
 	  $hash->{helper}->{delay}=join(",",$command,$value,$start);
 	  return;
   }
@@ -1405,8 +1405,6 @@ sub HomeConnect_StartProgram($) {
 	return $ret;
   }
 
-  #-- the option hash does not have prefixes in key, but in array
-  #   $hash->{data}->{options}->{$key} = [$pref,$type,$def,$vals,$lup,$exec];
   my @optdata;
 
   foreach my $key ( keys %{ $hash->{data}->{options} } ) {
@@ -1632,20 +1630,8 @@ sub HomeConnect_GetPrograms {
   my $operationState = ReadingsVal( $name, "BSH.Common.Status.OperationState", "" );
 
   if ( $operationState =~ /((Active)|(DelayedStart)|(Run))/ ) {
-	  return;
-  } #Do not try to get programs at all - previously this logic was used, which does not make sense to me:
-#    my $activeProgram = ReadingsVal( $name, "BSH.Common.Setting.ActiveProgram", "" );
-#    $activeProgram =~ s/^\s+|\s+$//g;
-#	if ( $activeProgram eq "" ) {
-#	  $msg = "[HomeConnect_GetPrograms] name: failure GetPrograms in OperationState=$operationState, but no ActiveProgram defined";
-#	  Log3 $name, 1, $msg;
-#	  return $msg;
-#	}
-#	else {
-#	  $msg = "[HomeConnect_GetPrograms] name: failure GetPrograms in OperationState=$operationState of ActiveProgram $activeProgram";
-#	  Log3 $name, 1, $msg;
-#	}
- # }
+	  return; #Do not try to get programs at all in these cases
+  } 
 
   #-- Request available programs
   my $data = {
@@ -1690,34 +1676,24 @@ sub HomeConnect_ResponseGetPrograms {
   my $programPrefix = $hash->{prefix} . ".Program.";
   my $extraPrograms = AttrVal( $name, "extraPrograms", "" );
 
-  #-- put into list without prefix
-  my $programs = "";
-  for ( my $i = 0 ; 1 ; $i++ ) {
-	my $programline = $jhash->{data}->{programs}[$i];
-	if ( !defined $programline ) { last }
-	my $key = $programline->{key};
+  my $arr=$jhash->{data}->{programs};
+  
+  my @prgs;
+  foreach my $line (@$arr) {
+	my $key = $line->{key};
 	$key =~ s/$programPrefix//;
 
  #Work around a problem with certain dryers that repeat the program name 3 times
 	my @kk = split( /\./, $key );
 	$key = $kk[0] if ( @kk == 3 and $kk[0] eq $kk[1] );
-	$programs .= ","
-	  if ( $programs ne "" );
-	$programs .= $key;
+	push (@prgs,$key);
   }
-
-  #-- do not overwrite if return is empty
-  if ( $programs ne "" ) {
-	$programs .= "," . $extraPrograms
-	  if ( $extraPrograms ne "" );
-	my $count = $programs =~ tr/,//;
-	#Only take over if more than one (as during "run" state only the active program gets return
-	if ($count>0) {
-		$hash->{programs} = $programs;
-		readingsSingleUpdate($hash,".programs",$programs,0); #Also remember in hidden reading
-	}
-  }
-  else {
+  if (@prgs>0) { #Only change programs if a list was returned
+	push (@prgs,$extraPrograms);
+	my $programs=join(",",@prgs);
+	$hash->{programs} = $programs;
+	readingsSingleUpdate($hash,".programs",$programs,0); #Also remember in hidden reading
+  } else {
 	$msg = "[HomeConnect_ResponseGetPrograms] $name: no programs found";
 	readingsSingleUpdate( $hash, "lastErr", "No programs found", 1 );
 	Log3 $name, 1, $msg;
@@ -1743,7 +1719,7 @@ sub HomeConnect_GetProgramOptions {
   #-- first try active program as it might be more accurate than "selected"
   my $program = HomeConnect_ReadingsVal( $hash, "BSH.Common.Setting.ActiveProgram", "" );
   $program =~ s/^\s+|\s+$//g;
-  HomeConnect_FileLog($hash, "Program: $program");
+  HomeConnect_FileLog($hash, "GetProgramOptions: $program");
   if ( $program eq "" ) {
 
 	#-- 2nd guess with selected program
@@ -1762,8 +1738,6 @@ sub HomeConnect_GetProgramOptions {
   #-- add prefix for calling the API
   $program = $programPrefix . $program
 	if ( $program !~ /$programPrefix/ );
-
-  HomeConnect_FileLog($hash, "Program: $program");
 
   #SPECIAL TEST CASE - leaving that in as I don't have such a device
   if ( $program =~ /Cooking.Hood.Program.Cooking.Common.Program/ ) {
@@ -1797,7 +1771,7 @@ sub HomeConnect_ResponseGetProgramOptions {
 
   my $options= HomeConnect_ParseKeys($hash,"options",$json);
 
-  #Add extra options from attribute, booleans will be detected by specifying them with "option:on,off"
+  #Add extra options from attribute, booleans will be detected by specifying them with "option:On,Off"
   #However even Option Names are identified, they don't work with the API
   my $extraOpts = AttrVal($name,"extraOptions","");
   my @opt=split(" ",$extraOpts);
@@ -1809,7 +1783,8 @@ sub HomeConnect_ResponseGetProgramOptions {
 	$options.=$1;
   }
   $hash->{options}=$options;
-
+  #Also get the current state data
+  HomeConnect_CheckProgram($hash);
   return;
 }
 
@@ -1819,6 +1794,7 @@ sub HomeConnect_ParseKeys($$$) {
   my ($hash,$area,$json) = @_;
 
   my $name=$hash->{NAME};
+  my $orgarea=$area;
   return if ( !defined $json );
   Log3 $name, 5, "[HomeConnect_ParseKeys] $name: $area response $json";
 
@@ -1835,10 +1811,10 @@ sub HomeConnect_ParseKeys($$$) {
    HomeConnect_HandleError( $hash, $jhash );
    return undef;
   }
-
+  $area="options" if ($area eq "check"); #"check" is a special case for options
   return if (!$jhash->{data}->{$area});
 
-  delete $hash->{data}->{$area};
+  delete $hash->{data}->{$orgarea}; #use orgarea here as "check" should not overwrite "options"
   
   my $arr=$jhash->{data}->{$area};
 
@@ -1846,6 +1822,7 @@ sub HomeConnect_ParseKeys($$$) {
   my @list; #to return a summary list
   foreach my $line (@$arr) {
 	my $option=$line->{key};
+	my $key=$option; #unaltered
 	$option =~ s/.*\.//;
 	push (@list,$option);
 	my $vtype=$line->{type};
@@ -1866,22 +1843,35 @@ sub HomeConnect_ParseKeys($$$) {
 	}
 
 	HomeConnect_SetOption($hash,$area,$option,"type",$line->{type}); #Full type
-	$allowedvals="on,off" if ($vtype and $vtype eq "Boolean");
-	$allowedvals="on,off" if (ref($svalue) eq "JSON::PP::Boolean");
-	HomeConnect_SetOption($hash,$area,$option,"name",$line->{key}); #Full key needed to issue command
-	HomeConnect_SetOption($hash,$area,$option,"min",$line->{constraints}->{min}); #could be used for range checking
-	HomeConnect_SetOption($hash,$area,$option,"max",$line->{constraints}->{max}); #could be used for range checking
-	HomeConnect_SetOption($hash,$area,$option,"update",$line->{constraints}->{liveupdate}); 
-	HomeConnect_SetOption($hash,$area,$option,"values",$allowedvals); #typically exclusive of min/max
-	HomeConnect_SetOption($hash,$area,$option,"default",$default); #needed? Probably need to set this in the reading for preselection
-	HomeConnect_SetOption($hash,$area,$option,"exec",$line->{constraints}->{execution}); #needed?
+	$allowedvals="On,Off" if ($vtype and $vtype eq "Boolean");
+	if (ref($svalue) eq "JSON::PP::Boolean") {
+		$allowedvals="On,Off";
+		$vtype="Boolean";
+		$svalue=$svalue?"On":"Off"; #Convert JSON Boolean to On/Off
+	}
+	if ($svalue and !$allowedvals and $line->{value} =~ /EnumType.*(On|Off)/) {
+		#SpecialCase for enumerator On/Off when now enumarations are set in "check" mode
+		$allowedvals="On,Off";
+	}
+	if ($orgarea ne "check" or defined($hash->{data}->{$area}->{$key})) { #Checkprogram shall only update existing values
+		HomeConnect_SetOption($hash,$area,$option,"name",$key); #Full key needed to issue command
+		HomeConnect_SetOption($hash,$area,$option,"min",$line->{constraints}->{min}); #could be used for range checking
+		HomeConnect_SetOption($hash,$area,$option,"max",$line->{constraints}->{max}); #could be used for range checking
+		HomeConnect_SetOption($hash,$area,$option,"update",$line->{constraints}->{liveupdate}); 
+		HomeConnect_SetOption($hash,$area,$option,"values",$allowedvals); #typically exclusive of min/max
+		HomeConnect_SetOption($hash,$area,$option,"default",$default); #needed? Probably need to set this in the reading for preselection
+		HomeConnect_SetOption($hash,$area,$option,"exec",$line->{constraints}->{execution}); #needed?
 
-	HomeConnect_SetOption($hash,$area,$option,"value",$svalue); #for settings
-	HomeConnect_SetOption($hash,$area,$option,"type",$stype); #for settings
-	HomeConnect_SetOption($hash,$area,$option,"unit",$line->{unit}); #for settings
+		$svalue=HomeConnect_SetOption($hash,$area,$option,"value",$svalue); #for settings
+		HomeConnect_SetOption($hash,$area,$option,"type",$stype); #for settings
+		HomeConnect_SetOption($hash,$area,$option,"unit",$line->{unit}); #for settings
+	} 
 	
+	next if ($orgarea eq "check" and AttrVal($name,"extraInfo",0) eq "0"); #Skip extra readings if not desired
 	#Also put this into readings
-	HomeConnect_readingsBulkUpdate( $hash, $line->{key}, $svalue ) if ($area eq "settings" and $svalue); #Only for settings - options come with events
+	HomeConnect_readingsBulkUpdate( $hash, $key, $svalue ) if ($area =~ /settings|status/ and $svalue); #Only for settings - options come with events
+	$svalue.=" ".$line->{unit} if $line->{unit};
+	HomeConnect_readingsBulkUpdate( $hash, $key, $svalue ) if ($orgarea eq "check" and $svalue); #CheckProgram returns current values
   }
   readingsEndUpdate( $hash, 1 );
   return join(",",@list);
@@ -1894,6 +1884,7 @@ sub HomeConnect_SetOption($$$$$) {
 	$value=$value?1:0; #Convert to normal 0/1
   }
   $hash->{data}->{$area}->{$key}->{$target}=$value;
+  return $value; #Use for conversion
 }
 
 ##############################################################################
@@ -1928,13 +1919,15 @@ sub HomeConnect_CheckState($) {
 
   my $aprogram = HomeConnect_ReadingsVal( $hash, "BSH.Common.Setting.ActiveProgram", "" );
   my $sprogram = HomeConnect_ReadingsVal( $hash, "BSH.Common.Setting.SelectedProgram", "" );
-  my $remoteStartAllowed=HomeConnect_ReadingsVal($hash,"BSH.Common.Status.RemoteControlStartAllowed",0);
+  my $remoteStartAllowed=HomeConnect_ReadingsVal($hash,"BSH.Common.Status.RemoteControlStartAllowed","Off");
+  $remoteStartAllowed=($remoteStartAllowed eq "On"?1:0);
   
+  #Remove this: It leads to setting activeProgram even though it just got set to undef
   #-- active program missing
-  if ( $aprogram eq "" && $operationState eq "Run" ) {
-	$aprogram = $sprogram;
-	HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Setting.ActiveProgram", $aprogram, 1 );
-  }
+#  if ( $aprogram eq "" && $operationState eq "Run" ) {
+#	$aprogram = $sprogram;
+#	HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Setting.ActiveProgram", $aprogram, 1 );
+ # }
 
   #-- selected program missing
   if ( $sprogram eq "" && $operationState eq "Run" ) {
@@ -2046,6 +2039,7 @@ sub HomeConnect_CheckState($) {
   readingsBulkUpdate( $hash, "state",   $state );
   readingsBulkUpdate( $hash, "state1",  $state1 );
   readingsBulkUpdate( $hash, "state2",  $state2 );
+
   HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Status.OperationState",  $operationState ) if $operationState ne $orgOpSt;
   readingsEndUpdate( $hash, 1 );
 
@@ -2086,67 +2080,12 @@ sub HomeConnect_ResponseUpdateStatus {
   my ( $hash, $json ) = @_;
   my $name = $hash->{NAME};
   my $msg;
-
-  if ( !defined $json ) {
-	Log3 $name, 1, "[HomeConnect_ResponseUpdateStatus] $name: no status available";
-	return;
-  }
-
-  Log3 $name, 5, "[HomeConnect_ResponseUpdateStatus] $name: status response $json";
-
-  my $JSON  = JSON->new->utf8(0)->allow_nonref;
-  my $jhash = eval { $JSON->decode($json) };
-  if ($@) {
-	$msg = "[HomeConnect_ResponseUpdateStatus] $name: JSON error requesting status: $@";
-	Log3 $name, 1, $msg;
-	return $msg;
-  }
-  HomeConnect_FileLog($hash,"Update Status:".Dumper($jhash));
-
-  #-- local readings hash has all prefixes
-  my %localreadings = ();
-  for ( my $i = 0 ; 1 ; $i++ ) {
-	my $statusline = $jhash->{data}->{status}[$i];
-	if ( !defined $statusline ) { last }
-	my $key   = $statusline->{key};
-	my $value = $statusline->{value};
-	my $unit  = $statusline->{unit};
-	$localreadings{$key} =
-	  $value . ( ( defined $unit ) ? " " . $unit : "" );
-  }
-
-  if ( $jhash->{"error"} ) {
-	my $error = HomeConnect_HandleError( $hash, $jhash );
-  }
-
-  my $statusPrefix = "((BSH.Common.Status.)|(" . $hash->{prefix} . ".Status.))";
-
-  #-- Update readings
-  readingsBeginUpdate($hash);
-  for my $key ( keys %localreadings ) {
-	my $value = $localreadings{$key};
-	if ( $key !~ /$statusPrefix/ ) {
-	  Log3 $name, 1, "[HomeConnect_ResponseUpdateStatus] $name: found new status prefix in $key";
-	}
-
-	HomeConnect_readingsBulkUpdate( $hash, $key, $value );
-	Log3 $name, 4, "[HomeConnect_ResponseUpdateStatus] $name: updating reading $key to $value";
-
-  }
-  readingsEndUpdate( $hash, 1 );
-
-  my $operationState = HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.OperationState", "0" );
-  my $pgmRunning = $operationState =~ /((Active)|(DelayedStart)|(Run))/;
+  
+  HomeConnect_ParseKeys($hash,"status",$json);
 
   $hash->{helper}->{init}="status_done";
   
-  #--check for a running program
-  if ($pgmRunning) {
-	#TODO: This currently does nothing - needed or change needed?
-	HomeConnect_CheckProgram($hash);
-  }
-
-  #-- new state
+  HomeConnect_CheckProgram($hash);
   HomeConnect_CheckState($hash);
 }
 
@@ -2158,11 +2097,17 @@ sub HomeConnect_ResponseUpdateStatus {
 
 sub HomeConnect_CheckProgram {
   my ($hash) = @_;
-
+ 
+  #Can only query if a program is either selected or active - prefer active here
+  my $query="";
+  $query="selected" if HomeConnect_ReadingsVal( $hash, "BSH.Common.Setting.SelectedProgram", "" );
+  $query="active" if HomeConnect_ReadingsVal( $hash, "BSH.Common.Setting.ActiveProgram", "" );
+  return if $query eq "";
+  
   #-- Get status variables
   my $data = {
 	callback => \&HomeConnect_ResponseCheckProgram,
-	uri      => "/api/homeappliances/$hash->{haId}/programs/active"
+	uri      => "/api/homeappliances/$hash->{haId}/programs/selected"
   };
   HomeConnect_Request( $hash, $data );
 }
@@ -2178,46 +2123,9 @@ sub HomeConnect_ResponseCheckProgram {
   my $name = $hash->{NAME};
   my $msg;
 
-  if ( !defined $json ) {
-	Log3 $name, 1, "[HomeConnect_ResponseCheckProgram] $name: no response";
-	return;
-  }
-
-  my $JSON  = JSON->new->utf8(0)->allow_nonref;
-  my $jhash = eval { $JSON->decode($json) };
-  if ($@) {
-	$msg = "[HomeConnec_ResponseCheckProgram] $name: JSON error requesting status: $@";
-	Log3 $name, 1, $msg;
-	return $msg;
-  }
-  HomeConnect_FileLog($hash,"ResponseCheckProgram:".Dumper($jhash));
-
-  #-- change readings if necessary
-  Log3 $name, 1, "[HomeConnect_ResponseCheckProgram] $name: ActiveProgram WOULD BE SET TO ". $jhash->{data}->{key};
-  #readingsBeginUpdate($hash);
-  for ( my $i = 0 ; 1 ; $i++ ) {
-	my $optsline = $jhash->{data}->{options}[$i];
-	if ( !defined $optsline ) { last }
-
-#--cleanup the key from all prefixes (keypref= key with prefix, key = key without prefix)
-	my $keypref = $optsline->{key};
-	my $key     = $keypref;
-	$key =~ s/(.*)\.//;
-	my $val = $optsline->{value};
-	$val =~ s/(.*\.)//;
-	my $pref = $1;
-
-	if ( defined($val) ) {
-	  if ( defined $optsline->{unit} ) {
-		$val .= " " . $optsline->{unit};
-	  }
-	  my $oldval = HomeConnect_ReadingsVal( $hash, $keypref, "" );
-	  if ("$oldval" ne "$val") {
-	    Log3 $name, 1, "[HomeConnect_ResponseCheckProgram] $name: key $keypref has current value $oldval and new value $pref $val";
-	  }
-	}
-  }
-  #readingsEndUpdate( $hash, 1 );
+  my $options= HomeConnect_ParseKeys($hash,"check",$json);
+ 
+  return;
 }
 
 ##############################################################################
@@ -2424,9 +2332,11 @@ sub HomeConnect_ReadEventChannel($) {
 	  HomeConnect_FileLog($hash,"Event:".Dumper($jhash));
 
 	  my $isalarmoff = 0;
+
 	  readingsBeginUpdate($hash);
 
 	  for ( my $i = 0 ; 1 ; $i++ ) {
+		my $skipupdate=0;
 		my $item = $jhash->{items}[$i];
 		if ( !defined $item ) { last }
 		my $key   = $item->{key};
@@ -2434,10 +2344,9 @@ sub HomeConnect_ReadEventChannel($) {
 		$value = "" if ( !defined($value) );
 		my $unit = $item->{unit};
 		$unit = "" if ( !defined($unit) );
-
-		HomeConnect_readingsBulkUpdate( $hash, $key, $value . ( ( defined $unit ) ? " " . $unit : "" ) );
+		$value=$value?"On":"Off" if (ref($value) eq "JSON::PP::Boolean");
+		
 		Log3 $name, 4, "[HomeConnect_ReadEventChannel] $name: $key = $value";
-
 		#-- special keys
 		if ( $key =~ /.*Finished$/ ) {
 		  if ( $value =~ /Present/ and $operationState =~ /Run/ ) {
@@ -2467,27 +2376,29 @@ sub HomeConnect_ReadEventChannel($) {
 		  }
 		  HomeConnect_readingsBulkUpdate( $hash,"alarms",$alarms);
 		  my @cnt=split(",",$alarms);
-		  HomeConnect_readingsBulkUpdate( $hash,"alarmCount",@cnt);
+		  HomeConnect_readingsBulkUpdate( $hash,"alarmCount",scalar @cnt);
 		  $checkstate=1;
 		} elsif ( $key =~ /ActiveProgram/ ) {
+		  #Remember previous active program
+		  $hash->{helper}->{ActiveProgram}=HomeConnect_ReadingsVal( $hash, "BSH.Common.Settings.ActiveProgram",""); 
 		  $checkstate=1;
 		} elsif ( $key =~ /PowerState/ ) {
+		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Setting.ActiveProgram", undef) if ($value =~/Off/);
 		  $checkstate=1; # Update state on power change
 		} elsif ( $key =~ /EstimatedTotalProgramTime/ ) {
 		  #If the device estimates the total time, the FinishInRelative would contain some potential garbage number - reset
 		  HomeConnect_readingsBulkUpdate( $hash,"BSH.Common.Option.FinishInRelative",0);
 		  $checkstate=1;
 		} elsif ( $key =~ /SelectedProgram/ ) {
-		#Need to get program options when changing program except on power off where this gets set to undef
+		  #Need to get program options when changing program except on power off where this gets set to undef
 		  $hash->{helper}->{updatePO} = 1 if $value;
-		}	elsif ( $key =~ /RemainingProgramTime/ ) {
-		  my $h    = int( $value / 3600 );
-		  my $m    = ceil( ( $value - 3600 * $h ) / 60 );
-		  my $tim1 = sprintf( "%d:%02d", $h, $m );
-
-		  #-- hijacking the prefix although not authorized
-		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.RemainingProgramTimeHHMM", $tim1 );
-		  $checkstate = 1;
+		  #This is the case, when a program gets stopped to set a different delay. Set the previous active program instead of the "default"
+		  $value=$hash->{helper}->{ActiveProgram} if ($hash->{helper}->{ActiveProgram} and $hash->{helper}->{autostart});
+		  delete $hash->{helper}->{ActiveProgram};
+		  #If Active Program is set when a new program is selected and operationState is not running, this probably is a error
+		  if ($operationState =~ /Ready|Inactive/ and HomeConnect_ReadingsVal( $hash, "BSH.Common.Setting.ActiveProgram", "" ) ne "") {
+			HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Settings.ActiveProgram", undef );
+		  }
 		}
 		elsif ( $key =~ /StartInRelative/ ) {
 		  $value =~ s/\D+//g; # remove seconds
@@ -2506,31 +2417,23 @@ sub HomeConnect_ReadEventChannel($) {
 		  my $tim3 = sprintf( "%d:%02d", $starthour, $startmin );
 		  my $tim4 = sprintf( "%d:%02d", $endhour,   $endmin );
 
-		  #-- hijacking the prefix although not authorized
 		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.StartInRelativeHHMM", $tim2 );
 		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.StartAtHHMM", $tim3 );
 		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.StartToHHMM", $tim4 );
 		}
-		elsif ( $key =~ /FinishInRelative/ ) {
+		#Combine updates for FinishInRelative and RemainingProgramTime as both will change the Finish Time
+		elsif ( $key =~ /(FinishInRelative)|(RemainingProgramTime)/ ) {
 		  $value =~ s/\D+//g; # remove seconds
 		  my $h    = int( $value / 3600 );
 		  my $m    = ceil( ( $value - 3600 * $h ) / 60 );
-		  my $tim2 = sprintf( "%d:%02d", $h, $m );
+		  my $frel = sprintf( "%d:%02d", $h, $m );
+		  my ( $endmin, $endhour ) = ( localtime( time + $value ) )[ 1, 2 ];
+		  my $ftim = sprintf( "%d:%02d", $endhour, $endmin );
 
-		 #-- determine start and end
-		 #my ($startmin, $starthour) = (localtime(time+$value))[1,2];
-		 #my $delta = ReadingsNum($name,$optionPrefix."RemainingProgramTime",0);
-		  my ( $endmin, $endhour ) =
-			( localtime( time + $value ) )[ 1, 2 ];
-
-		  #my $tim3 = sprintf("%d:%02d",$starthour,$startmin);
-		  my $tim4 = sprintf( "%d:%02d", $endhour, $endmin );
-
-		  #-- hijacking the prefix although not authorized
-		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.FinishInRelativeHHMM", $tim2 );
-
-		  #readingsBulkUpdate($hash, $optionPrefix."StartAtHHMM", $tim3);
-		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.FinishAtHHMM", $tim4 );
+		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.RemainingProgramTimeHHMM", $frel ) if $key =~ /RemainingProgramTime/;
+		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.FinishInRelativeHHMM", $frel );
+		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.FinishAtHHMM", $ftim );
+		  $checkstate = 1;
 		}
 		elsif ( $key =~ /AlarmClockElapsed/ ) {
 		  if ( $value =~ /Present/ ) {
@@ -2550,7 +2453,6 @@ sub HomeConnect_ReadEventChannel($) {
 			( localtime( time + $value ) )[ 1, 2 ];
 		  my $tim6 = sprintf( "%d:%02d", $endhour, $endmin );
 
-		  #-- hijacking the prefix although not authorized
 		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.AlarmClockHHMM", $tim5 );
 		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.AlarmAtHHMM", $tim6 );
 		} elsif ( $key =~ /(DoorState)/ ) {
@@ -2564,6 +2466,7 @@ sub HomeConnect_ReadEventChannel($) {
 		}
 		elsif ( $key =~ /RemoteControlStartAllowed/ ) {
 		}
+		HomeConnect_readingsBulkUpdate( $hash, $key, $value . ( ( defined $unit ) ? " " . $unit : "" ) ) if !$skipupdate;
 	  }
 
 	  #-- determine new state
@@ -2607,7 +2510,7 @@ sub HomeConnect_ReplaceReading($$) {
   my $HC_namePrefix = AttrVal( $name, "namePrefix", 0 );
   $value =~ s/BSH.Common.Root/BSH.Common.Setting/; #Rename the confusing Root entries
   if ( $HC_namePrefix == 0 ) {
-	$value =~ s/BSH.Common.//;
+	$value =~ s/.*\.Common.//; #Need *.Common as there is BSH.Common, but also e.g. LaundryCare.Common
 	my $programPrefix = $hash->{prefix} . "\.";
 	$value =~ s/$programPrefix//;
   }
@@ -2616,6 +2519,7 @@ sub HomeConnect_ReplaceReading($$) {
 
 sub HomeConnect_ReplaceValue($$) {
   my ( $hash, $value ) = @_;
+  $value="" if !defined($value); #for setting "undef"
   my $name           = $hash->{NAME};
   my $HC_valuePrefix = AttrVal( $name, "valuePrefix", 0 );
   if ( $HC_valuePrefix == 0 and $value =~ /\./ ) {
@@ -2647,7 +2551,6 @@ sub HomeConnect_ReadingsUpdate($$$$$) {
 	$tvalue=$HC_table{DE}{$lvalue} if (defined $HC_table{DE}{$lvalue});
 	#In case user wants the program name, try that as well:
 	$tvalue=$hash->{data}->{trans}->{$nvalue} if (defined( $hash->{data}->{trans}->{$nvalue}));
-	#$sreading="tr_".$sreading; #Custom readings don't need any prefix
 	$tvalue = decode_utf8($tvalue) if $unicodeEncoding;
 	readingsSingleUpdate( $hash, $sreading, $tvalue, $notify ) if $function eq "single";
 	readingsBulkUpdate( $hash, $sreading, $tvalue ) if $function eq "bulk";
@@ -2744,10 +2647,8 @@ sub HomeConnect_Notify($$) {
 	}
 }
 
-################################### 
 sub HomeConnect_State($$$$) {			#reload readings at FHEM start
 	my ($hash, $tim, $sname, $sval) = @_;
-    #Log3 $hash->{NAME}, 1, "[HomeConnect_State] called";  
 	return undef;
 }
 
@@ -2896,6 +2797,11 @@ sub HomeConnect_State($$$$) {			#reload readings at FHEM start
 			Comma separeted list of options (as written in the "set" list) that should be hidden as they are unwanted or do not apply for your specific device.<br>
 			This list will be automatically extended when the API return a "not supported" error.<br>
 			Make sure to save your config to make this permanent. Also check this list if you miss a setting - maybe a "false positive" was detected, e.g. by trying to use a setting at a stage when the device does not accept it, while it would in a different stage.
+			</li>
+	<li><b>extraInfo &lt;Integer&gt;</b><br>
+			<a id="HomeConnect-attr-extraInfo"></a>
+			If set to 1, some additional program info like load recommendations, energy/water consumption or options than can only be set on the appliance are shown as "Option" readings.<br>
+			By default these are disabled as it is a bit confusing that these options cannot be changed and also can increase the list of readings quite a bit.<br>
 			</li>
 			
   </ul>
