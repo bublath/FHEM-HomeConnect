@@ -448,7 +448,7 @@ sub HomeConnect_Init($) {
   my $name = $hash->{NAME};
   Log3 $hash->{NAME}, 1, "[HomeConnect_Init] for $name called";
   $Data::Dumper::Indent = 0;
-
+  $hash->{STATE}="Initializing, please wait";
   $hash->{helper}->{init}="start";
   #Set the most important settings from hidden readings and defaults to avoid fatal errors when API calls fail
   my $type=ReadingsVal($name,".type",undef);
@@ -495,6 +495,7 @@ sub HomeConnect_InitWatcher($) {
 	  $count=0;
 	} elsif ($state eq "error") {
 	  #Stop processing - device is in a bad state
+      $hash->{STATE}="Error";
 	  RemoveInternalTimer($hash);
 	}
 	
@@ -568,7 +569,7 @@ sub HomeConnect_ResponseInit {
   $attr{$name}{alias} = $hash->{aliasname} if ( !defined $attr{$name}{alias} && defined $hash->{aliasname} );
 
   $hash->{helper}->{init}="init_done";
-  
+
   #Some general static initialization, now we know the type
   
   my $isDE = ( AttrVal( "global", "language", "EN" ) eq "DE" );
@@ -2086,6 +2087,7 @@ sub HomeConnect_ResponseUpdateStatus {
   
   HomeConnect_CheckProgram($hash);
   HomeConnect_CheckState($hash);
+  $hash->{STATE}="Ready";
 }
 
 ##############################################################################
@@ -2527,7 +2529,7 @@ sub HomeConnect_ReplaceValue($$) {
 	$value = $1;
   }
   $value =~ s/\s$//;    # Remove any trailing spaces
-  $value = encode_utf8($value) if !($unicodeEncoding);
+  $value = decode_utf8($value) if $unicodeEncoding;
   return $value;
 }
 
