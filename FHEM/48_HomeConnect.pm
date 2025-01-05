@@ -83,7 +83,8 @@ my %HC_table = (
   "door"        => "Tür",
   "on"			=> "An",
   "off"			=> "Aus",
-  "autostart"   => "Autostart"
+  "autostart"   => "Autostart",
+  "temperature" => "Temperatur"
 	},
 	"EN" => {
   "ok"          => "OK",
@@ -122,7 +123,8 @@ my %HC_table = (
   "door"        => "door",
   "on"			=> "on",
   "off"			=> "off",
-  "autostart"   => "autostart"
+  "autostart"   => "autostart",
+  "temperature" => "temperature"
 	}
 );
 
@@ -343,38 +345,38 @@ $HomeConnect_DevicePowerOff{"CoffeeMaker"} = "PowerStandby";
 $HomeConnect_DeviceEvents{"CoffeeMaker"} = [ "BeanContainerEmpty", "WaterTankEmpty", "DripTrayFull" ];
 $HomeConnect_DeviceTrans_DE{"CoffeeMaker"} = {
   "Beverage.Ristretto"             => "Ristretto",
-  "Beverage.EspressoDoppio "       => " Espresso doppio",
+  "Beverage.EspressoDoppio "       => "Espresso_Doppio",
   "Beverage.Espresso"              => "Espresso",
-  "Beverage.EspressoMacchiato"     => "Espresso Macchiato",
-  "Beverage.Coffee"                => "Caffè crema",
+  "Beverage.EspressoMacchiato"     => "Espresso_Macchiato",
+  "Beverage.Coffee"                => "Kaffee",
   "Beverage.Cappuccino"            => "Cappuccino",
-  "Beverage.LatteMacchiato"        => "Latte Macchiato",
-  "Beverage.CaffeeLatte "          => "Milchkaffee",
+  "Beverage.LatteMacchiato"        => "Latte_Macchiato",
+  "Beverage.CaffeLatte"            => "Milchkaffee",
   "Beverage.MilkFroth"             => "Milchschaum",
-  "Beverage.WarmMilk"              => "Warme Milch",
-  "CoffeeWorld.KleinerBrauner"     => "Kleiner Brauner",
-  "CoffeeWorld.GrosserBrauner"     => "Großer Brauner",
+  "Beverage.WarmMilk"              => "Warme_Milch",
+  "CoffeeWorld.KleinerBrauner"     => "Kleiner_Brauner",
+  "CoffeeWorld.GrosserBrauner"     => "Großer_Brauner",
   "CoffeeWorld.Verlaengerter"      => "Verlängerter",
-  "CoffeeWorld.VerlaengerterBraun" => "Verlängerter Braun",
-  "CoffeeWorld.WienerMelange"      => "Wiener Melange",
-  "CoffeeWorld.FlatWhite"          => "Flat White",
+  "CoffeeWorld.VerlaengerterBraun" => "Verlängerter_Braun",
+  "CoffeeWorld.WienerMelange"      => "Wiener_Melange",
+  "CoffeeWorld.FlatWhite"          => "Flat_White",
   "CoffeeWorld.Cortado"            => "Cortado",
-  "CoffeeWorld.CafeCortado"        => "Café cortado",
-  "CoffeeWorld.CafeConLeche"       => "Café con leche",
-  "CoffeeWorld.CafeAuLait"         => "Café au lait",
+  "CoffeeWorld.CafeCortado"        => "Cafe_cortado",
+  "CoffeeWorld.CafeConLeche"       => "Cafe_con_leche",
+  "CoffeeWorld.CafeAuLait"         => "Cafe_au_lait",
   "CoffeeWorld.Kaapi"              => "Kaapi",
-  "CoffeeWorld.KoffieVerkeerd"     => "Koffie verkeerd",
-  "CoffeeWorld.Galao"              => "Galão",
+  "CoffeeWorld.KoffieVerkeerd"     => "Koffie_verkeerd",
+  "CoffeeWorld.Galao"              => "Galao",
   "CoffeeWorld.Garoto"             => "Garoto",
   "CoffeeWorld.Americano"          => "Americano",
-  "CoffeeWorld.RedEye"             => "Red Eye",
-  "CoffeeWorld.BlackEye"           => "Black Eye",
-  "CoffeeWorld.DeadEye"            => "Dead Eye",
-  "Favorite.001"                   => "Favorit 1",
-  "Favorite.002"                   => "Favorit 2",
-  "Favorite.003"                   => "Favorit 3",
-  "Favorite.004"                   => "Favorit 4",
-  "Favorite.005"                   => "Favorit 5"
+  "CoffeeWorld.RedEye"             => "Red_Eye",
+  "CoffeeWorld.BlackEye"           => "Black_Eye",
+  "CoffeeWorld.DeadEye"            => "Dead_Eye",
+  "Favorite.001"                   => "Favorit_1",
+  "Favorite.002"                   => "Favorit_2",
+  "Favorite.003"                   => "Favorit_3",
+  "Favorite.004"                   => "Favorit_4",
+  "Favorite.005"                   => "Favorit_5"
 };
 
 #Was ich noch komisch finde: In der App und an der Maschine kann ich noch die Programme "Heißwasser" und "Kaffeekanne" auswählen, in Fhem gibts die aber nicht
@@ -832,7 +834,9 @@ sub HomeConnect_Set($@) {
 			push(@cmds,"DelayStartTime:time DelayEndTime:time DelayRelative:time") if $remoteStartAllowed;
 		  } else {
 			my $values=$hash->{data}->{options}->{$key}->{values};
-			$availableOpts .= $key.":".$values." " if $values;
+			$availableOpts .= $key;
+			$availableOpts .= ":".$values if $values;
+			$availableOpts .= " ";
 		  }
 		}
 	}
@@ -1115,11 +1119,11 @@ sub HomeConnect_MakeJSON($$$) {
   }
   $value =~ s/ $def->{unit}// if $def->{unit};
   if ($type =~ /Int/ or $type =~ /Double/) {
-    return "Value too small" if ($def->{min} and $value<$def->{min});
-    return "Value too large" if ($def->{max} and $value>$def->{max});
+    return "Value too small, must be >$def->{min}" if ($def->{min} and $value<$def->{min});
+    return "Value too large, must be <$def->{max}" if ($def->{max} and $value>$def->{max});
   } elsif ($type =~ /Bool/) {
 	$value = ( $value =~ /1|((o|O)n)/ ) ? "true" : "false" ;
-  } elsif ($type =~ /Enum/) { #EnumType
+  } elsif ($type =~ /(E|e)num/) { #EnumType
     return "Unknown value" if ($def->{values} and $value !~ /$values/);
 	$value = "\"".$def->{type}.".".$value."\"";
   }
@@ -1127,7 +1131,7 @@ sub HomeConnect_MakeJSON($$$) {
   my $json = "{\"key\":\"$def->{name}\",\"value\":$value";
 	$json .= ",\"unit\":\"$def->{unit}\"" if ( defined $def->{unit} );
 	$json .= "}";
-
+  $json=encode_utf8($json); #httputils will throw an internal error on "°C" otherwise
   return $json;
 }
 
@@ -1423,7 +1427,7 @@ sub HomeConnect_StartProgram($) {
 
 	#-- safeguard against missing delay
 	$value = "0 seconds"
-	  if ( $key eq "StartInRelative" && $value eq "" ) or (!($hash->{helper}->{delayedstart}));
+	  if ( $key eq "StartInRelative" && ($value eq ""  or !($hash->{helper}->{delayedstart})));
 	$value = "0 seconds"
 	  if ( $key eq "FinishInRelative" && !$hash->{helper}->{delayedstart} );
 	  
@@ -1620,6 +1624,12 @@ sub HomeConnect_GetPrograms {
   my ($hash) = @_;
   my $name = $hash->{NAME};
   my $msg;
+  
+  #No programs with any fridges
+  if ($hash->{type} =~ /(Fridge)|(Freezer)/) { 
+	$hash->{helper}->{init}="programs_done";
+	return;
+  }
 
   #If no programs are set, try to get it from hidden reading
   if (!$hash->{programs}) {
@@ -1713,6 +1723,13 @@ sub HomeConnect_GetProgramOptions {
   my ($hash) = @_;
   my $name = $hash->{NAME};
   my $msg;
+  
+    #No programs with any fridges
+  if ($hash->{type} =~ /(Fridge)|(Freezer)/) { 
+	$hash->{helper}->{init}="programs_done";
+	return;
+  }
+  
   $hash->{helper}->{updatePO}=0; #Clear Request Flag
   #-- start the processing
   my $programPrefix = $hash->{prefix} . ".Program.";
@@ -1854,6 +1871,8 @@ sub HomeConnect_ParseKeys($$$) {
 		#SpecialCase for enumerator On/Off when now enumarations are set in "check" mode
 		$allowedvals="On,Off";
 	}
+	my $unit=$line->{unit};
+	$unit = undef if (defined($unit) and $line->{unit} =~ /(E|e)num/); #Stupid coffeemaker has "enum" as unit
 	if ($orgarea ne "check" or defined($hash->{data}->{$area}->{$key})) { #Checkprogram shall only update existing values
 		HomeConnect_SetOption($hash,$area,$option,"name",$key); #Full key needed to issue command
 		HomeConnect_SetOption($hash,$area,$option,"min",$line->{constraints}->{min}); #could be used for range checking
@@ -1865,12 +1884,12 @@ sub HomeConnect_ParseKeys($$$) {
 
 		$svalue=HomeConnect_SetOption($hash,$area,$option,"value",$svalue); #for settings
 		HomeConnect_SetOption($hash,$area,$option,"type",$stype); #for settings
-		HomeConnect_SetOption($hash,$area,$option,"unit",$line->{unit}); #for settings
+		HomeConnect_SetOption($hash,$area,$option,"unit",$unit); #for settings
 	} 
 	
 	next if ($orgarea eq "check" and AttrVal($name,"extraInfo",0) eq "0"); #Skip extra readings if not desired
 	#Also put this into readings
-	$svalue.=" ".$line->{unit} if $line->{unit};
+	$svalue.=" ".$unit if $unit;
 	HomeConnect_readingsBulkUpdate( $hash, $key, $svalue ) if ($area =~ /settings|status/ and $svalue); #Only for settings - options come with events
 	HomeConnect_readingsBulkUpdate( $hash, $key, $svalue ) if ($orgarea eq "check" and $svalue); #CheckProgram returns current values
   }
@@ -1901,6 +1920,7 @@ sub HomeConnect_CheckState($) {
   return if !defined $hash->{prefix};    #Still not initialized
   my $lang = AttrVal( "global", "language", "EN" );
   my $programPrefix = $hash->{prefix} . "Command.";
+  my $type = $hash->{type};
 
   my $currentstate = ReadingsVal($name, "state", "off");
  #--- operationState (some device report OperationState ready while powered off)
@@ -1958,6 +1978,7 @@ sub HomeConnect_CheckState($) {
   my $tim = HomeConnect_ReadingsVal( $hash,	"BSH.Common.Option.RemainingProgramTimeHHMM", "0:00" );
   my $sta = HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.StartAtHHMM", "0:00" );
   my $door = HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.DoorState", "closed" );
+  $tim=$pct."%" if ($tim eq "0:00" and $pct>0); #E.g. for coffemaker that just gives a %
 
   HomeConnect_FileLog($hash, "[HomeConnect_CheckState] from s:$currentstate d:$door o:$orgOpSt");
 
@@ -1967,13 +1988,29 @@ sub HomeConnect_CheckState($) {
   my $trans  = $HC_table{$lang}->{ lc $operationState };
   $trans=$operationState if (!defined $trans or $trans eq "");
   
+  if ( $type =~ /Oven/ ) {
+	my $tim1 = HomeConnect_ReadingsVal( $hash,	"BSH.Common.Option.RemainingProgramTime", "0 seconds" );
+	my $tim2 = HomeConnect_ReadingsVal( $hash,	"BSH.Common.Option.ElapsedProgramTime", "0 seconds" );
+	my $temp = HomeConnect_ReadingsVal( $hash,	"Cooking.Oven.Status.CurrentCavityTemperature", "0 °C" );
+	$tim="";
+	$tim1  =~ s/ \D+//g; # remove seconds
+	$tim2  =~ s/ \D+//g; # remove seconds
+	$temp  =~ s/ \D+//g; # remove °C
+	$temp = int($temp); #Remove decimals
+	$tim = HomeConnect_ConvertSeconds($tim2) if $tim2>0; #Default is elapsed
+	$tim = HomeConnect_ConvertSeconds($tim1) if $tim1>0; #Alternative Remaining
+	$tim .= "/" if ($temp>0 and $tim ne "");
+	$tim .= $temp." °C" if $temp>0;
+  }
+
+  readingsBeginUpdate($hash);  
   if ( $operationState =~ /(Run)/ ) {
 	$state  = "run";
 	$state1 = "$program";
 	$state2 = "$tim";
 	if ($currentstate ne $state and $program ne "") {
 		#state changed into running - now get the program options that might only be valid during run (e.g. SilenceOnDemand)
-		  $hash->{helper}->{updatePO} = 1; 
+		  $hash->{helper}->{updatePO} = 1 if ($type !~ /Coffee/); #Except for coffemakers where this would create errors
 	}
   }
   if ( $operationState =~ /Pause/ ) {
@@ -1990,14 +2027,16 @@ sub HomeConnect_CheckState($) {
 	$state  = lc $operationState;
 	$state1 = $trans;
 	$state2 = "-";
-	readingsSingleUpdate($hash,"lastErr","Error or action required",1);
+	readingsBulkUpdate($hash,"lastErr","Error or action required",1);
   }
   if ( $operationState =~ /(Abort)|(Finished)/ ) {
 	$state  = "done";
 	$state1 = $HC_table{$lang}->{$state};
 	$state2 = "-";
+	$state = "idle" if $type =~ /Coffe/; # Coffeemakers don't have a door that can be opened -> go to ready right away
   }
   if ( $operationState =~ /(Ready)|(Inactive)|(Offline)/ ) {
+    HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.ProgramProgress", "1 %" ) if $pct>0; #Reset Progress to prevent wrong display when starting next
 	if ($currentstate eq "done" and $door =~ /Closed/) {
 		#Delay switching to "idle" until door gets opened so user continues to get indication that appliance needs to be emptied, even when it goes to "off" automatically
 		$state  = "done";
@@ -2024,13 +2063,20 @@ sub HomeConnect_CheckState($) {
 	$operationState = "Ready" if $operationState =~/Finished/; # There might be no event setting Finished -> Ready when Finished was by set by FHEM
   }
 
+  #This type only shows temperatures, override everything
+  if ( $type =~ /FridgeFreezer/ ) {
+    $state = $HC_table{$lang}->{"temperature"};
+	$state = $state1 if ($door =~ /Open/); # Take the "door open" from previous door open condition
+	$state1 = HomeConnect_ReadingsVal( $hash,"Refrigeration.FridgeFreezer.Setting.SetpointTemperatureRefrigerator", "0 °C" )." °C";
+	$state2 = HomeConnect_ReadingsVal( $hash,"Refrigeration.FridgeFreezer.Setting.SetpointTemperatureFreezer", "0 °C" )." °C";
+  } 
+
   HomeConnect_FileLog($hash, "[HomeConnect_CheckState] to s:$state d:$door o:$operationState 1:$state1 2:$state2");
   
   #Correct special characters if using encoding=unicode
   $state1 = decode_utf8($state1) if $unicodeEncoding;
   $state2 = decode_utf8($state2) if $unicodeEncoding;
   
-  readingsBeginUpdate($hash);
   my $errage=ReadingsAge($name,"lastErr",0);
   #Clear lastErr if older than 30min to avoid confusion
   if ($errage>1800) {
@@ -2262,7 +2308,7 @@ sub HomeConnect_ReadEventChannel($) {
 
   my $count      = 0;
   my $checkstate = 0;   # Flag that checkState should be called after processing
-
+  my $updatestatus = 0; # Flag that UpdateStatus should be called after processing
   #-- read data
   while ( $hash->{conn}->fileno() ) {
 
@@ -2375,10 +2421,12 @@ sub HomeConnect_ReadEventChannel($) {
 		    $alarms =~ s/$alarm//g;
 			$alarms =~ s/,,/,/g; #Clean potential double "," after removal
 		  }
-		  HomeConnect_readingsBulkUpdate( $hash,"alarms",$alarms);
+		  readingsBulkUpdate( $hash,"alarms",$alarms);
 		  my @cnt=split(",",$alarms);
-		  HomeConnect_readingsBulkUpdate( $hash,"alarmCount",scalar @cnt);
+		  readingsBulkUpdate( $hash,"alarmCount",scalar @cnt);
 		  $checkstate=1;
+		} elsif ( $key =~ /ProgramAborted/ ) {
+		  $updatestatus=1 if ($value =~/Present/ and $operationState =~ /Run/); #Reread status after abort
 		} elsif ( $key =~ /ActiveProgram/ ) {
 		  #Remember previous active program
 		  my $prev=HomeConnect_ReadingsVal( $hash, "BSH.Common.Setting.ActiveProgram","");
@@ -2457,7 +2505,7 @@ sub HomeConnect_ReadEventChannel($) {
 
 		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.AlarmClockHHMM", $tim5 );
 		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.AlarmAtHHMM", $tim6 );
-		} elsif ( $key =~ /(DoorState)/ ) {
+		} elsif ( $key =~ /(DoorState)|(ProgramProgress)/ ) {
 		  $checkstate = 1;
 		} elsif ( $key =~ /(OperationState)/ ) {
 		  if (defined $value) {
@@ -2480,7 +2528,7 @@ sub HomeConnect_ReadEventChannel($) {
 	}
 	elsif ( $event eq "CONNECTED" ) {
 	  Log3 $name, 4, "[HomeConnect_ReadEventChannel] $name: connected $id";
-	  HomeConnect_UpdateStatus($hash);
+	  $updatestatus=1;
 	}
 	elsif ( $event eq "KEEP-ALIVE" ) {
 	  Log3 $name, 4, "[HomeConnect_ReadEventChannel] $name: keep alive $id";
@@ -2495,8 +2543,18 @@ sub HomeConnect_ReadEventChannel($) {
   }
 
   #Update some status readings if requested
+  
+  HomeConnect_UpdateStatus($hash) if $updatestatus;
   HomeConnect_CheckState($hash) if $checkstate;
   Log3 $name, 5, "[HomeConnect_ReadEventChannel] $name: event channel received no more data";
+}
+
+sub HomeConnect_ConvertSeconds($) {
+	my ($value) = @_;
+	my $h    = int( $value / 3600 );
+	my $m    = ceil( ( $value - 3600 * $h ) / 60 );
+	my $time = sprintf( "%d:%02d", $h, $m );
+	return $time;
 }
 
 # Manipulate the Readings and Values according to the settings
@@ -2520,6 +2578,7 @@ sub HomeConnect_ReplaceValue($$) {
   my ( $hash, $value ) = @_;
   $value="" if !defined($value); #for setting "undef"
   my $name           = $hash->{NAME};
+  return $value if ( $value =~ /\d+\.\d+/ ); # Floating Point
   my $HC_valuePrefix = AttrVal( $name, "valuePrefix", 0 );
   if ( $HC_valuePrefix == 0 and $value =~ /\./ ) {
 	if ( $value =~ /.*\.Program\.(.*)/ ) {
@@ -2545,7 +2604,7 @@ sub HomeConnect_ReadingsUpdate($$$$$) {
   $trans = "^".$trans."\$";
   $nreading =~ /.*\.(.*)$/;
   my $sreading = $1; #Pure last part of the reading
-  $value = $1;
+  $sreading=$reading if !$sreading; #Catch case reading has no dots
 
   if ($sreading =~ $trans) {
 	my $lvalue=lc $nvalue;
