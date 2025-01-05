@@ -1637,7 +1637,7 @@ sub HomeConnect_GetPrograms {
   #-- Request available programs
   my $data = {
 	callback => \&HomeConnect_ResponseGetPrograms,
-	uri      => "/api/homeappliances/$hash->{haId}/programs/available"
+	uri      => "/api/homeappliances/$hash->{haId}/programs" #TEST: Without available?
   };
   HomeConnect_Request( $hash, $data );
 
