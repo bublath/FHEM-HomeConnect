@@ -771,7 +771,7 @@ sub HomeConnect_Set($@) {
 
   my $pwchoice="";
   #-- PowerOn not for Hob, Oven and Washer
-  if ( $type !~ /(Hob)|(Oven)|(Washer)/ ) {
+  if ( $type !~ /(Hob)|(Oven)|(Washer$)/ ) {
 	$pwchoice="On";
   }
 
