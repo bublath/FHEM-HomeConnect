@@ -255,7 +255,7 @@ $HomeConnect_DeviceEvents{"Washer"} = [ "IDos1FillLevelPoor", "IDos2FillLevelPoo
 $HomeConnect_DeviceTrans_DE{"Washer"} = {
   "Cotton"                => "Baumwolle",
   "Cotton.Eco4060"        => "Baumwolle_Eco5060",
-  "Cotton.Eco"            => "Baumwolle_Eco",
+  "Cotton.CottonEco"      => "Baumwolle_Eco",
   "Super153045.Super1530" => "Super15/30",
   "EasyCare"              => "Pflegeleicht",
   "Mix"                   => "Schnell/Mix",
@@ -264,7 +264,7 @@ $HomeConnect_DeviceTrans_DE{"Washer"} = {
   "SportFitness"          => "Sportsachen",
   "Outdoor"               => "Outdoor",
   "Sensitive"             => "Empfindliche_Wäsche",
-  "ShirtsBlouses"         => "Hemden",
+  "ShirtsBlouses"          => "Hemden",
   "DarkWash"              => "Dunkle_Wäsche",
   "Mix.Nightwash"         => "Nachtwäsche",
   "Towels"                => "Handtücher",
@@ -300,7 +300,8 @@ $HomeConnect_DeviceTrans_DE{"Dryer"} = {
   "Bedlinens"	   => "Bettwäsche",
   "Hygiene"        => "Hygiene",
   "TimeWarm"	   => "Warm/Zeit",
-  "BusinessShirts" => "Hemden"
+  "ShirtBlouses"   => "Hemden",
+
 };
 
 #-- WasherDryer
@@ -1689,7 +1690,7 @@ sub HomeConnect_ResponseGetPrograms {
 	push (@prgs,$key);
   }
   if (@prgs>0) { #Only change programs if a list was returned
-	push (@prgs,$extraPrograms);
+	push (@prgs,$extraPrograms) if $extraPrograms;
 	my $programs=join(",",@prgs);
 	$hash->{programs} = $programs;
 	readingsSingleUpdate($hash,".programs",$programs,0); #Also remember in hidden reading
@@ -1942,7 +1943,6 @@ sub HomeConnect_CheckState($) {
   #-- trailing space ???
   $program =~ s/\s$//;
 
-#Log 1,"===========> $name has program $program, translated into ".$hash->{data}->{trans}->{$program};
 #-- program name only replaced by transtable content if this exists
   if ( $program ne "" && defined( $hash->{data}->{trans}->{$program} ) ) {
 	$program = $hash->{data}->{trans}->{$program};
@@ -2522,8 +2522,12 @@ sub HomeConnect_ReplaceValue($$) {
   my $name           = $hash->{NAME};
   my $HC_valuePrefix = AttrVal( $name, "valuePrefix", 0 );
   if ( $HC_valuePrefix == 0 and $value =~ /\./ ) {
-	$value =~ /.*\.(.*)$/;
-	$value = $1;
+	if ( $value =~ /.*\.Program\.(.*)/ ) {
+	  $value=$1;
+	} else {
+	  $value =~ /.*\.(.*)$/;
+	  $value = $1;
+	}
   }
   $value =~ s/\s$//;    # Remove any trailing spaces
   $value = decode_utf8($value) if $unicodeEncoding;
