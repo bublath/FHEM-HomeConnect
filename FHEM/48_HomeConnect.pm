@@ -448,6 +448,7 @@ sub HomeConnect_Init($) {
   my $name = $hash->{NAME};
   Log3 $hash->{NAME}, 1, "[HomeConnect_Init] for $name called";
   $Data::Dumper::Indent = 0;
+
   $hash->{STATE}="Initializing, please wait";
   $hash->{helper}->{init}="start";
   #Set the most important settings from hidden readings and defaults to avoid fatal errors when API calls fail
@@ -549,6 +550,7 @@ sub HomeConnect_ResponseInit {
   if (!$appliance) {
     $hash->{helper}->{init}="error";
 	Log3 $name, 3, "[HomeConnect_ResponseInit] $name: specified appliance with haId $hash->{haId} not found";
+	HomeConnect_readingsSingleUpdate($hash,"lastErr","Appliance $hash->{haId} not found",1);
 	return;
   }
   $hash->{aliasname} = $appliance->{name};
@@ -700,6 +702,7 @@ sub HomeConnect_HandleError($$) {
 
   my $error           = "unknown";
   if ( defined $jhash->{"error"}->{"description"} ) {
+    HomeConnect_FileLog($hash,"Error:".Dumper($jhash));
 	$error = $jhash->{"error"}->{"description"};
 	Log3 $name, 1, "[HomeConnect_HandleError] $name: Error \"$error\""
 	  if $error;
@@ -951,6 +954,7 @@ sub HomeConnect_Set($@) {
 	  uri      => "/api/homeappliances/$haId/programs/active"
 	};
 	HomeConnectConnection_delrequest( $hash, $data );
+	HomeConnect_FileLog($hash,"Stopping Program:".Dumper($data));
 
   #-- set options, update current program if needed ----------------------------
   }
@@ -1395,10 +1399,6 @@ sub HomeConnect_StartProgram($) {
   #-- trailing space ???
   $program =~ s/\s$//;
 
-  if ( $program eq "" ) {
-	$program = HomeConnect_ReadingsVal( $hash, "BSH.Common.Setting.SelectedProgram", undef );
-  }
-
   if ( !defined $program || index( $programs, $program ) == -1 ) {
 	$ret = "[HomeConnect_StartProgram] $name: Cannot start, unknown program $program, choose one of $programs";
 	Log3 $name, 1, $ret;
@@ -1719,7 +1719,6 @@ sub HomeConnect_GetProgramOptions {
   #-- first try active program as it might be more accurate than "selected"
   my $program = HomeConnect_ReadingsVal( $hash, "BSH.Common.Setting.ActiveProgram", "" );
   $program =~ s/^\s+|\s+$//g;
-  HomeConnect_FileLog($hash, "GetProgramOptions: $program");
   if ( $program eq "" ) {
 
 	#-- 2nd guess with selected program
@@ -1738,6 +1737,7 @@ sub HomeConnect_GetProgramOptions {
   #-- add prefix for calling the API
   $program = $programPrefix . $program
 	if ( $program !~ /$programPrefix/ );
+  HomeConnect_FileLog($hash, "GetProgramOptions: $program");
 
   #SPECIAL TEST CASE - leaving that in as I don't have such a device
   if ( $program =~ /Cooking.Hood.Program.Cooking.Common.Program/ ) {
@@ -1869,8 +1869,8 @@ sub HomeConnect_ParseKeys($$$) {
 	
 	next if ($orgarea eq "check" and AttrVal($name,"extraInfo",0) eq "0"); #Skip extra readings if not desired
 	#Also put this into readings
-	HomeConnect_readingsBulkUpdate( $hash, $key, $svalue ) if ($area =~ /settings|status/ and $svalue); #Only for settings - options come with events
 	$svalue.=" ".$line->{unit} if $line->{unit};
+	HomeConnect_readingsBulkUpdate( $hash, $key, $svalue ) if ($area =~ /settings|status/ and $svalue); #Only for settings - options come with events
 	HomeConnect_readingsBulkUpdate( $hash, $key, $svalue ) if ($orgarea eq "check" and $svalue); #CheckProgram returns current values
   }
   readingsEndUpdate( $hash, 1 );
@@ -2470,9 +2470,6 @@ sub HomeConnect_ReadEventChannel($) {
 		}
 		HomeConnect_readingsBulkUpdate( $hash, $key, $value . ( ( defined $unit ) ? " " . $unit : "" ) ) if !$skipupdate;
 	  }
-
-	  #-- determine new state
-	  HomeConnect_CheckState($hash);
 	}
 	elsif ( $event eq "DISCONNECTED" ) {
 	  my $state = "Offline";
@@ -2511,7 +2508,7 @@ sub HomeConnect_ReplaceReading($$) {
   my $name          = $hash->{NAME};
   my $HC_namePrefix = AttrVal( $name, "namePrefix", 0 );
   $value =~ s/BSH.Common.Root/BSH.Common.Setting/; #Rename the confusing Root entries
-  if ( $HC_namePrefix == 0 ) {
+  if ( $HC_namePrefix == 0 and $hash->{prefix}) {
 	$value =~ s/.*\.Common.//; #Need *.Common as there is BSH.Common, but also e.g. LaundryCare.Common
 	my $programPrefix = $hash->{prefix} . "\.";
 	$value =~ s/$programPrefix//;
@@ -2611,11 +2608,14 @@ sub HomeConnect_FileLog($$) {
 	$msg =~ s/homeappliances\/[0-9]+\//homeappliances\/XXXX\//mg;
 	$msg =~ s/'haId' => '[0-9]+'/'haId' => 'XXXX'/mg;
 	my $fh = $logdev->{FH};
-	return if (!$fh);
+	if (!$fh) {
+		#Log into normal log if something is wrong with filehandle
+		Log3 $hash->{NAME}, 4, "[HomeConnect_FileLog] $hash->{NAME}: $msg";
+		return;
+	}
 	my @t = localtime();
     my $tim = sprintf("%04d.%02d.%02d %02d:%02d:%02d",
           $t[5]+1900,$t[4]+1,$t[3], $t[2],$t[1],$t[0]);
-	$fh->flush();
 	print $fh $tim." ".$msg."\n";
 }
 
