@@ -430,11 +430,9 @@ sub HomeConnect_Define($$) {
   $hash->{hcconn} = $a[2];
   $hash->{haId}   = $a[3];
 
-  return undef if !defined( $defs{ $hash->{hcconn} } );
-  return undef if $defs{ $hash->{hcconn} } ne "Connected";
-
-  #-- Delay init if not yet connected - not working
-  #return undef if(Value($hash->{hcconn}) ne "Logged in");
+  my $hcc=$defs{ $hash->{hcconn} };
+  return "[HomeConnect_Define] HomeConnectConnection device $a[2] not found" if !defined( $hcc );
+  return undef if $hcc->{STATE} ne "Connected";
 
   return HomeConnect_Init($hash);
 }
@@ -1024,6 +1022,7 @@ sub HomeConnect_Get($@) {
   #-- check argument
   my $gets     = "Settings:noArg Status:noArg";
   my $type     = $hash->{type};
+  return if !$type; # Device not ready yet
   if ( $type !~ /FridgeFreezer/ ) {
 	$gets .= " Programs:noArg ProgramOptions:noArg";
   }
