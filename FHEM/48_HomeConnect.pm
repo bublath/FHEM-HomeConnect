@@ -273,7 +273,8 @@ $HomeConnect_DeviceTrans_DE{"Washer"} = {
   "DownDuvet.Duvet"       => "Bettdecke",
   "DrumClean"             => "Trommelreinigung",
   "PowerSpeed59"		  => "powerSpeed59",
-  "SpinDrain"			  => "Schleudern"
+  "SpinDrain"			  => "Schleudern/Abpumpen",
+  "Spin"				  => "Schleudern"
 };
 
 #-- Dryer
@@ -990,7 +991,7 @@ sub HomeConnect_Set($@) {
 	#Translate back to get a valid program
 	if ($hash->{data}->{retrans}) {
 		$program = encode_utf8($program) if ($unicodeEncoding);
-		$program=$hash->{data}->{retrans}->{$program};
+		$program=$hash->{data}->{retrans}->{$program} if $hash->{data}->{retrans}->{$program};
 	}
 
 	##### TEMPORARY
@@ -2067,7 +2068,7 @@ sub HomeConnect_CheckState($) {
   readingsBulkUpdate( $hash, "state",   $state );
   readingsBulkUpdate( $hash, "state1",  $state1 );
   readingsBulkUpdate( $hash, "state2",  $state2 );
-
+  HomeConnect_CheckAlerts($hash);
   HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Status.OperationState",  $operationState ) if $operationState ne $orgOpSt;
   readingsEndUpdate( $hash, 1 );
 
@@ -2077,6 +2078,40 @@ sub HomeConnect_CheckState($) {
 	  my @args=split(",",$hash->{helper}->{delay});
 	  HomeConnect_DelayTimer($hash,$args[0],$args[1],$args[2]);
 	  delete $hash->{helper}->{delay};
+  }
+}
+
+#Check the Events for active alerts and store a summary in alerts and alertCount
+sub HomeConnect_CheckAlerts($) {
+  my ($hash) = @_;
+  
+  foreach my $reading (keys %{$hash->{READINGS}}) {
+   if ($reading =~ /Event\.(.*)/) {
+    my $value = HomeConnect_ReadingsVal($hash,$reading,"");
+    my $alarm = $1;
+	next if (!$alarm or $alarm eq "" or $value eq "");
+	print "Event reading $reading ($1) = $value\n";
+	#Ignore: ProgramFinished, ProgramAborted, AlarmClockElapsed, PreheatFinished, DryingProcessFinished
+	#Alternative positive list: /(Empty)|(Full)|(Cool)|(Descal)|(Clean)|(DoorAlarm)|(TemperatureAlarm)|(Stuck)|(Found)|(Poor)|(Reached)/
+	next if ($alarm =~ /Program|AlarmClock|Finished/ );
+
+	my $alarms=ReadingsVal($hash->{NAME},"alarms","");
+	  if ( $value =~ /Present/ ) {
+		#If alarm not yet in list - add it
+		if ( $alarms !~ $alarm ) {
+			$alarms .= "," if $alarms ne "";
+			$alarms .= $alarm;
+		}
+	  } else {
+		#Remove alarm after it is over
+	    $alarms =~ s/$alarm//g;
+		$alarms =~ s/,,/,/g; #Clean potential double "," after removal
+	  }
+	  #Use Bulkupdate as this is called from within an readingsBegin/EndUpdate
+	  readingsBulkUpdate( $hash,"alarms",$alarms);
+	  my @cnt=split(",",$alarms);
+	  readingsBulkUpdate( $hash,"alarmCount",scalar @cnt);
+   }
   }
 }
 
@@ -2388,24 +2423,7 @@ sub HomeConnect_ReadEventChannel($) {
 		  $checkstate = 1;
 		#Known Alerts - keep filters very generic, but it should be accurate enough to only react on real alarms (use DoorAlarm and TemperatureAlarm to distinguish from AlarmClock)
 		} elsif ( $key =~ /(Empty)|(Full)|(Cool)|(Descal)|(Clean)|(DoorAlarm)|(TemperatureAlarm)|(Stuck)|(Found)|(Poor)|(Reached)/ ) {
-		  my $alarms=ReadingsVal($name,"alarms","");
-		  $key =~ /.*\.(.*)$/;
-		  my $alarm = $1;
-		  next if (!$alarm or $alarm eq "");
-		  if ( $value =~ /Present/ ) {
-			#If alarm not yet in list - add it
-			if ( $alarms !~ $alarm ) {
-				$alarms .= "," if $alarms ne "";
-				$alarms .= $alarm;
-			}
-		  } else {
-			#Remove alarm after it is over
-		    $alarms =~ s/$alarm//g;
-			$alarms =~ s/,,/,/g; #Clean potential double "," after removal
-		  }
-		  readingsBulkUpdate( $hash,"alarms",$alarms);
-		  my @cnt=split(",",$alarms);
-		  readingsBulkUpdate( $hash,"alarmCount",scalar @cnt);
+		  #update now done in CheckState()
 		  $checkstate=1;
 		} elsif ( $key =~ /ProgramAborted/ ) {
 		  $updatestatus=1 if ($value =~/Present/ and $operationState =~ /Run/); #Reread status after abort
