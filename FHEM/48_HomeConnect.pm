@@ -2133,7 +2133,7 @@ sub HomeConnect_CheckProgram {
   #-- Get status variables
   my $data = {
 	callback => \&HomeConnect_ResponseCheckProgram,
-	uri      => "/api/homeappliances/$hash->{haId}/programs/selected"
+	uri      => "/api/homeappliances/$hash->{haId}/programs/$query"
   };
   HomeConnect_Request( $hash, $data );
 }
