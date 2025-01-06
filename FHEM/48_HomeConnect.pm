@@ -6,8 +6,8 @@
 #
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
-# Major re-rebuild by Adimarantis 2024
-# Version 1.1beta vom 23.12.2024
+# Major re-rebuild by Adimarantis 2024/2025
+my $HCversion = "1.3";
 #
 # $Id: xx $
 #
@@ -43,7 +43,6 @@ use vars qw(%defs);
 require 'HttpUtils.pm';
 
 ##############################################
-my $HCversion = "1.1beta";
 
 my %HC_table = (
 	"DE" => {
@@ -772,7 +771,7 @@ sub HomeConnect_Set($@) {
   }
 
   my @cmds;
-  push (@cmds,"ZZZ_Dump:noArg anyRequest:textField");
+  #disable debug stuff: push (@cmds,"ZZZ_Dump:noArg anyRequest:textField");
   
   #-- PowerOff not for Hob, Oven
   if ( defined( $hash->{data}->{poweroff} ) ) {
@@ -1107,7 +1106,7 @@ sub HomeConnect_MakeJSON($$$) {
   my $type=$def->{type};
   $type="undef" if !$type; #If no type skip all conversions and checks
   my $values=$def->{values}; #Make a pattern of the value list
-  $type = "Boolean" if (!defined $type and $values =~ /(o|O)n,(o|O)ff/);
+  $type = "Boolean" if ($type eq "undef" and $values =~ /(o|O)n,(o|O)ff/);
   if ($values) {
 	$values =~ s/,/\$|^/g;
 	$values = "^".$values."\$";
@@ -1961,7 +1960,7 @@ sub HomeConnect_CheckState($) {
   my $door = HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.DoorState", "closed" );
   $tim=$pct."%" if ($tim eq "0:00" and $pct>0); #E.g. for coffemaker that just gives a %
 
-  HomeConnect_FileLog($hash, "[HomeConnect_CheckState] from s:$currentstate d:$door o:$orgOpSt");
+  HomeConnect_FileLog($hash, "[HomeConnect_CheckState] V$HCversion from s:$currentstate d:$door o:$orgOpSt");
 
   my $state1 = "";
   my $state2 = "";

@@ -134,7 +134,23 @@ HomeConnectConnection_FwFn($$$$)
   if (!defined $authToken) {
 
     my $scope = AttrVal($hash->{NAME}, "accessScope",
-    	"IdentifyAppliance Monitor Settings Dishwasher-Control Washer-Control Dryer-Control CoffeeMaker-Control");
+		"IdentifyAppliance Monitor Settings Control " .
+		"Oven Oven-Control Oven-Monitor Oven-Settings " .
+		"Dishwasher Dishwasher-Control Dishwasher-Monitor Dishwasher-Settings " .
+		"Washer Washer-Control Washer-Monitor Washer-Settings " .
+		"Dryer Dryer-Control Dryer-Monitor Dryer-Settings " .
+		"WasherDryer WasherDryer-Control WasherDryer-Monitor WasherDryer-Settings " .
+		"Refrigerator Refrigerator-Control Refrigerator-Monitor Refrigerator-Settings " .
+		"Freezer Freezer-Control Freezer-Monitor Freezer-Settings " .
+		"WineCooler WineCooler-Control WineCooler-Monitor WineCooler-Settings " .
+		"CoffeeMaker CoffeeMaker-Control CoffeeMaker-Monitor CoffeeMaker-Settings " .
+		"Hob Hob-Control Hob-Monitor Hob-Settings " .
+		"Hood Hood-Control Hood-Monitor Hood-Settings " .
+		"CleaningRobot CleaningRobot-Control CleaningRobot-Monitor CleaningRobot-Settings " .
+		"CookProcessor CookProcessor-Control CookProcessor-Monitor CookProcessor-Settings " .
+		"");
+
+	$scope =~ s/\s$//; #Remove potential trailing space
 
     my $csrfToken = InternalVal("WEB", "CSRFTOKEN", "HomeConnectConnection_auth");
 
@@ -142,9 +158,7 @@ HomeConnectConnection_FwFn($$$$)
         "&redirect_uri=". uri_escape($hash->{redirect_uri}) . "&realm=fhem.de" .
         "&client_id=$hash->{client_id}&scope=" . uri_escape($scope) .
         "&state=" .$csrfToken. "\">Home Connect Login</a>";
-
   }
-
   return $fmtOutput;
 }
 
