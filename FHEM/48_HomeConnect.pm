@@ -565,7 +565,7 @@ sub HomeConnect_ResponseInit {
   $hash->{brand}     = $appliance->{brand};
   $hash->{vib}       = $appliance->{vib};
   $hash->{connected} = $appliance->{connected};
-  Log3 $name, 1, "[HomeConnect_ResponseInit] $name: defined as HomeConnect $hash->{type} $hash->{brand} $hash->{vib}";
+  Log3 $name, 3, "[HomeConnect_ResponseInit] $name: defined as HomeConnect $hash->{type} $hash->{brand} $hash->{vib}";
 
   my $icon = $HomeConnect_Iconmap{$appliance->{type}};
   $attr{$name}{icon} = $icon if (!defined $attr{$name}{icon} && !defined $attr{$name}{devStateIcon} && defined $icon);
@@ -630,14 +630,7 @@ sub HomeConnect_Response() {
 	$path = "Unknown";
   }
   #-- if data is present, something is wrong
-  if ( defined $data && length($data) > 0 ) {
-
-	#-- no rights ===> TODO: MOVE THIS INTO ERROR HANDLING
-	if ( index( $data, "insufficient_scope" ) > -1 ) {
-	  $msg = "[HomeConnect_Response] $name: insufficient_scope error, command not accepted by API due to missing rights";
-	  Log3 $name, 1, $msg;
-	  return $msg;
-	}
+  return if ( !defined $data or length($data) == 0 );
 
 	#Log3 $name, 1, "[HomeConnect_Response] $name: response $data";
 	my $JSON  = JSON->new->utf8(0)->allow_nonref;
@@ -653,11 +646,14 @@ sub HomeConnect_Response() {
 	if ( $jhash->{"error"} ) {
 		my $desc=$jhash->{"error"}->{"description"};
 		if ($desc) {
-			if ($desc =~ /Setting is not supported/) {  
+			my $key=$jhash->{"error"}->{"key"};
+			if ($desc =~ /Setting is not supported/ or $key eq "404" or $key eq "insufficient_scope") {  
 			    #Unfortunately the API returns 'SDK.Error.UnsupportedSetting' for both the API call and the setting itself
 				#So checking the description is the only way to distinguish
 				#Remembering that a setting does not work, so we can exclude it in future. Doing it in an attribute lets users revert that decision
-				HomeConnect_AddExclude($name,$path);
+				#key "404" indicates e.g. that command is not supported ("The requested resource could not be found")
+				#key "insufficient_scope" indicates that this is (currently) not possible via API
+ 				HomeConnect_AddExclude($name,$path);
 			} elsif ($desc =~ /Command: .*\.(.*) not supported/) {
 				#Same for commands, some commands do not work for specific models (e.g. PauseProgram)
 				HomeConnect_AddExclude($name,$1);
@@ -673,7 +669,6 @@ sub HomeConnect_Response() {
 	  HomeConnect_FileLog($hash,"Response getting Program Options");
 	  HomeConnect_GetProgramOptions($hash);
 	}
-  }
 }
 
 sub HomeConnect_AddExclude($$) {
@@ -744,8 +739,6 @@ sub HomeConnect_HandleError($$) {
 
 sub HomeConnect_Set($@) {
   my ( $hash, @a ) = @_;
-  my $reDOUBLE = '^(\\d+\\.?\\d{0,2})$';
-  my $JSON     = JSON->new->utf8(0)->allow_nonref;
 
   my $haId = $hash->{haId};
   my $name = $hash->{NAME};
@@ -755,7 +748,7 @@ sub HomeConnect_Set($@) {
 
 #--connect to Home Connect server, initialize status ------------------------------
   if ( $a[1] eq "init" ) {
-	Log3 $hash->{NAME}, 1, "[HomeConnect_Set] init called";  
+	Log3 $hash->{NAME}, 3, "[HomeConnect_Set] init called";  
 	InternalTimer( gettimeofday() + int(rand(10))+5, "HomeConnect_Init", $hash, 0 );
 	return;
   }
@@ -791,7 +784,15 @@ sub HomeConnect_Set($@) {
   if ( $type =~ /(Hood)|(Dishwasher)/ ) {
 	push(@cmds,"AmbientLightCustomColor:colorpicker,RBG") if ("AmbientLightCustomColor" !~ /$excludes/);
   }
-
+  
+  if ( $type =~ /(Fridge)|(Freezer)|(Refrigerator)/ ) { #+Oven?
+	my $da1=HomeConnect_ReadingsVal($hash,"Refrigeration.Common.Setting.Door.AssistantFridge","Off");
+	my $da2=HomeConnect_ReadingsVal($hash,"Refrigeration.Common.Setting.Door.AssistantFreezer","Off");
+	if ($da1 eq "On" or $da2 eq "On") {
+		push(@cmds,"OpenDoor:noArg") if ("OpenDoor" !~ /$excludes/);
+	}
+  }
+  
   #-- programs taken from hash or empty
   my $programs = $hash->{programs};
   $programs = "" if !defined($programs);
@@ -813,7 +814,7 @@ sub HomeConnect_Set($@) {
 
 #-- no programs for freezers, fridge freezers, refrigerators and wine coolers
 #   and due to API restrictions, wwe may also not set the programs for Hob and Oven
-  if ( $hash->{type} !~ /(Hob)|(Oven)|(FridgeFreezer)/ ) {
+  if ( $hash->{type} !~ /(Hob)|(Oven)|(Fridge)|(Freezer)|(Refrigerator)|(Wine)/ ) {
 	push(@cmds,"StopProgram:noArg") if ($operationState =~ /((Active)|(Run)|(Pause)|(DelayedStart))/);
 	push(@cmds,"PauseProgram:noArg") if ($operationState =~ /((Active)|(Run))/ and "PauseProgram" !~ /$excludes/);
 	push(@cmds,"ResumeProgram:noArg") if ($operationState =~ /(Pause)/);
@@ -876,7 +877,7 @@ sub HomeConnect_Set($@) {
   shift @a;
   my $command = shift @a;
   HomeConnect_FileLog($hash,"set $command ".join(" ",@a));
-  Log3 $name, 1, "[HomeConnect] $name: set command: $command";
+  Log3 $name, 3, "[HomeConnect] $name: set command: $command";
 
   if ( $command eq "ZZZ_Dump" ) {
 	return
@@ -906,8 +907,7 @@ sub HomeConnect_Set($@) {
 
 	#-- DelayTimer-----------------------------------------------------
   }
-  elsif ( $command =~
-	/(DelayRelative)|(DelayStartTime)|(DelayEndTime)|(DelayFinishAt)/ )
+  elsif ( $command =~ /(DelayRelative)|(DelayStartTime)|(DelayEndTime)|(DelayFinishAt)/ )
   {
 	#return "[HomeConnect] $name: cannot set delay timer, device powered off"
 	#  if (!$powerOn);
@@ -936,19 +936,10 @@ sub HomeConnect_Set($@) {
 	  if ($doorOpen);
 	return HomeConnect_StartProgram($hash);
 
-  #--pause current program------------------------------------------------------
+  #--basic command without arguments------------------------------------------------------
   }
-  elsif ( $command eq "PauseProgram" ) {
-	#return "[HomeConnect_Set] $name: no program running to pause"
-	#  if ( !$pgmRunning );
-	return HomeConnect_PauseProgram($hash);
-
-  #--resume paused program------------------------------------------------------
-  }
-  elsif ( $command eq "ResumeProgram" ) {
-	return "[HomeConnect_Set] $name: no program running to resume" if ($operationState =~ /(Pause)/);
-	return HomeConnect_ResumeProgram($hash);
-
+  elsif ( $command =~ /(PauseProgram)|(ResumeProgram)|(OpenDoor)/ ) {
+	return HomeConnect_SendCommand($hash,$command);
    #--stop current program------------------------------------------------------
   }
   elsif ( $command eq "StopProgram" ) {
@@ -971,9 +962,9 @@ sub HomeConnect_Set($@) {
 	}
 
 	if ($hash->{data}->{options}->{$command}) {
-	  return HomeConnect_SendCommand($hash,"options",$command,$optval,$optunit);
+	  return HomeConnect_SendSetting($hash,"options",$command,$optval,$optunit);
 	} elsif ($hash->{data}->{settings}->{$command}) {
-	  return HomeConnect_SendCommand($hash,"settings",$command,$optval,$optunit);
+	  return HomeConnect_SendSetting($hash,"settings",$command,$optval,$optunit);
 	} else {
 	  return "[HomeConnect_Set] $name: invalid command $command";
     }
@@ -988,7 +979,7 @@ sub HomeConnect_Set($@) {
 
 	#-- trailing space ???
 	$program =~ s/\s$//;
-	Log3 $name, 1, "[HomeConnect_Set] command to select program $program";
+	Log3 $name, 3, "[HomeConnect_Set] command to select program $program";
 
 	if ( ( !defined $program )
 	  || ( $programs ne "" && index( $programs, $program ) == -1 ) )
@@ -1013,7 +1004,7 @@ sub HomeConnect_Set($@) {
 	  data     => "{\"data\":{\"key\":\"$programPrefix$program\"}}"
 	};
 
-	Log3 $name, 1, "[HomeConnect] selecting program $program with uri " . $data->{uri} . " and data " . $data->{data};
+	Log3 $name, 3, "[HomeConnect] selecting program $program with uri " . $data->{uri} . " and data " . $data->{data};
 	HomeConnect_Request( $hash, $data );
   }
 }
@@ -1074,7 +1065,7 @@ sub HomeConnect_ResponseAny() {
   HomeConnect_FileLog($hash,"Reply $path: $data");
 }
 
-sub HomeConnect_SendCommand($$$$$) {
+sub HomeConnect_SendSetting($$$$$) {
   my ($hash, $area, $command, $value, $unit) = @_;
   my $name=$hash->{NAME};
   my $def=\%{$hash->{data}->{$area}->{$command}};
@@ -1102,7 +1093,7 @@ sub HomeConnect_SendCommand($$$$$) {
 	uri  => "/api/homeappliances/$hash->{haId}/$path/$def->{name}",
 	data => $json
   };
-  Log3 $name, 1, "[HomeConnect_SendCommand] changing $area with uri " . $data->{uri} . " and data " . $data->{data};
+  Log3 $name, 3, "[HomeConnect_SendSetting] changing $area with uri " . $data->{uri} . " and data " . $data->{data};
   HomeConnect_Request( $hash, $data );
 }
 
@@ -1111,6 +1102,7 @@ sub HomeConnect_MakeJSON($$$) {
   my ($hash,$def,$value,$dt) = @_;
   
   my $type=$def->{type};
+  $type="undef" if !$type; #If no type skip all conversions and checks
   my $values=$def->{values}; #Make a pattern of the value list
   $type = "Boolean" if (!defined $type and $values =~ /(o|O)n,(o|O)ff/);
   if ($values) {
@@ -1131,7 +1123,11 @@ sub HomeConnect_MakeJSON($$$) {
   my $json = "{\"key\":\"$def->{name}\",\"value\":$value";
 	$json .= ",\"unit\":\"$def->{unit}\"" if ( defined $def->{unit} );
 	$json .= "}";
-  $json=encode_utf8($json); #httputils will throw an internal error on "°C" otherwise
+  if (!$unicodeEncoding) {#httputils will throw an internal error on "°C" otherwise
+    print "no unicode\n";
+	$json=~ s/\x{c2}//g; #Special hack - just encode will be incorrect and not accepted by API
+    $json=encode_utf8($json);
+  }
   return $json;
 }
 
@@ -1154,7 +1150,7 @@ sub HomeConnect_PowerState($$) {
 	return "[HomeConnect_PowerState] $name: called with wrong argument $target";
   }
   else {
-	Log3 $name, 1, "[HomeConnect_PowerState] $name: setting PowerState->$target while OperationState=$operationState and PowerState=$powerState";
+	Log3 $name, 3, "[HomeConnect_PowerState] $name: setting PowerState->$target while OperationState=$operationState and PowerState=$powerState";
   }
 
   #-- send the update
@@ -1201,8 +1197,7 @@ sub HomeConnect_AlarmTimer($$$) {
 	$secs = $2 * 3600 + 60 * $3;
   }
   else {
-	Log3 $name, 1,
-	  "[HomeConnect] $name: error, input value $value is not a time spec";
+	Log3 $name, 1, "[HomeConnect] $name: error, input value $value is not a time spec";
 	return;
   }
 
@@ -1255,7 +1250,7 @@ sub HomeConnect_DelayTimer($$$$) {
   else {
 	return "[HomeConnect_DelayTimer] $name: error, input value $value is not a time spec";
   }
-  Log3 $name, 1, "[HomeConnect_DelayTimer] $name: requested Delay $secs ($thour:$tmin)";
+  Log3 $name, 3, "[HomeConnect_DelayTimer] $name: requested Delay $secs ($thour:$tmin)";
 
   #-- how long does the selected program run
   my $delta;
@@ -1286,7 +1281,7 @@ sub HomeConnect_DelayTimer($$$$) {
   }
   $delta = 0 if !looks_like_number($delta);
 
-  Log3 $name, 1, "[HomeConnect_DelayTimer] $name: program time is $delta";
+  Log3 $name, 5, "[HomeConnect_DelayTimer] $name: program time is $delta";
   if ( $delta <= 60 ) {
 	return "[HomeConnect_DelayTimer] $name: error, no program seleced";
   }
@@ -1360,7 +1355,6 @@ sub HomeConnect_DelayTimer($$$$) {
 	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.StartAtHHMM", $starttime );
 	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.FinishAtHHMM", $endtime );
 	readingsEndUpdate( $hash, 1 );
-	Log3 $name, 1, "[HomeConnect_DelayTimer] $name: startInRelative set to $startinrelative";
 	#-- device has option FinishInRelative
   }
   else {
@@ -1372,7 +1366,6 @@ sub HomeConnect_DelayTimer($$$$) {
 	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.StartAtHHMM", $starttime );
 	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.FinishAtHHMM", $endtime );
 	readingsEndUpdate( $hash, 1 );
-	Log3 $name, 1, "[HomeConnect_DelayTimer] $name: finishInRelative set to $endinrelative";
   }
   HomeConnect_StartProgram($hash) if (defined $start and $start eq "start");
 }
@@ -1431,7 +1424,7 @@ sub HomeConnect_StartProgram($) {
 	$value = "0 seconds"
 	  if ( $key eq "FinishInRelative" && !$hash->{helper}->{delayedstart} );
 	  
-	Log3 $name, 1, "[HomeConnect_StartProgram] $name: option $key has value $value";
+	Log3 $name, 3, "[HomeConnect_StartProgram] $name: option $key has value $value";
 
 	my $json=HomeConnect_MakeJSON($hash,\%{$hash->{data}->{options}->{$key}},$value);
 	return $json if ($json !~ /{.*}/); #Got error instead of JSON
@@ -1455,35 +1448,21 @@ sub HomeConnect_StartProgram($) {
 	  "{\"data\":{\"key\":\"$programPrefix$program\",\"options\":[$options]}}"
   };
 
-  Log3 $name, 1, "[HomeConnect] $name: start program $program with uri " . $data->{uri} . " and data " . $data->{data};
+  Log3 $name, 3, "[HomeConnect] $name: start program $program with uri " . $data->{uri} . " and data " . $data->{data};
   HomeConnect_Request( $hash, $data );
 }
 
-#BSH.Common.Status.OperationState=BSH.Common.EnumType.OperationState.Pause
-sub HomeConnect_PauseProgram($) {
-  my ($hash) = @_;
+# PauseProgram, ResumeProgram, OpenDoor
+sub HomeConnect_SendCommand($$) {
+  my ($hash,$command) = @_;
   my $name = $hash->{NAME};
-
+  return if (!$command or $command eq "");
   #-- submit update
   my $data = {
 	callback => \&HomeConnect_Response,
-	uri		=> "/api/homeappliances/" . $hash->{haId} . "/commands/BSH.Common.Command.PauseProgram",
-	data 	=> "{\"data\":{\"key\":\"BSH.Common.Command.PauseProgram\",\"value\": true } }" };
-  Log3 $name, 1, "[HomeConnect] $name: pause program with uri " . $data->{uri} . " and data " . $data->{data};
-  HomeConnect_Request( $hash, $data );
-}
-
-sub HomeConnect_ResumeProgram($) {
-  my ($hash) = @_;
-  my $name = $hash->{NAME};
-
-  #-- submit update
-  my $data = {
-	callback => \&HomeConnect_Response,
-	uri      => "/api/homeappliances/" . $hash->{haId} . "/commands/BSH.Common.Command.ResumeProgram",
-	data => "{\"data\":{\"key\":\"BSH.Common.Command.ResumeProgram\",\"value\": true}}"
-  };
-  Log3 $name, 1, "[HomeConnect] $name: resume program with uri " . $data->{uri} . " and data " . $data->{data};
+	uri		=> "/api/homeappliances/" . $hash->{haId} . "/commands/BSH.Common.Command.$command",
+	data 	=> "{\"data\":{\"key\":\"BSH.Common.Command.$command\",\"value\": true } }" };
+  Log3 $name, 3, "[HomeConnect] $name: $command uri " . $data->{uri} . " and data " . $data->{data};
   HomeConnect_Request( $hash, $data );
 }
 
@@ -1626,7 +1605,7 @@ sub HomeConnect_GetPrograms {
   my $msg;
   
   #No programs with any fridges
-  if ($hash->{type} =~ /(Fridge)|(Freezer)/) { 
+  if ($hash->{type} =~ /(Fridge)|(Freezer)|(Refrigerator)|(Wine)/) { 
 	$hash->{helper}->{init}="programs_done";
 	return;
   }
@@ -1725,7 +1704,7 @@ sub HomeConnect_GetProgramOptions {
   my $msg;
   
     #No programs with any fridges
-  if ($hash->{type} =~ /(Fridge)|(Freezer)/) { 
+  if ($hash->{type} =~ /(Fridge)|(Freezer)|(Refrigerator)|(Wine)/) { 
 	$hash->{helper}->{init}="programs_done";
 	return;
   }
@@ -2036,7 +2015,7 @@ sub HomeConnect_CheckState($) {
 	$state = "idle" if $type =~ /Coffe/; # Coffeemakers don't have a door that can be opened -> go to ready right away
   }
   if ( $operationState =~ /(Ready)|(Inactive)|(Offline)/ ) {
-    HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.ProgramProgress", "1 %" ) if $pct>0; #Reset Progress to prevent wrong display when starting next
+    HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.ProgramProgress", "0 %" ) if $pct>0; #Reset Progress to prevent wrong display when starting next
 	if ($currentstate eq "done" and $door =~ /Closed/) {
 		#Delay switching to "idle" until door gets opened so user continues to get indication that appliance needs to be emptied, even when it goes to "off" automatically
 		$state  = "done";
@@ -2442,6 +2421,7 @@ sub HomeConnect_ReadEventChannel($) {
 		} elsif ( $key =~ /SelectedProgram/ ) {
 		  #Need to get program options when changing program except on power off where this gets set to undef
 		  $hash->{helper}->{updatePO} = 1 if $value;
+		  $checkstate=1; #Otherwise updatePO is not triggered
 		  #This is the case, when a program gets stopped to set a different delay. Set the previous active program instead of the "default"
 		  $value=$hash->{helper}->{ActiveProgram} if ($hash->{helper}->{ActiveProgram} and $hash->{helper}->{autostart});
 		  #delete $hash->{helper}->{ActiveProgram};
