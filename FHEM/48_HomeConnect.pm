@@ -1030,6 +1030,8 @@ sub HomeConnect_Get($@) {
   return "[HomeConnect_Get] $name: with unknown argument $cmd, choose one of " . $gets
 	if ( $cmd eq "?" );
 
+  HomeConnect_FileLog($hash,"get ".join(" ",@args));
+
   #-- Programs ------------------------------------------
   if ( $cmd eq "Programs" ) {
 	return HomeConnect_GetPrograms($hash);
@@ -1989,7 +1991,8 @@ sub HomeConnect_CheckState($) {
 	$state2 = "$tim";
 	if ($currentstate ne $state and $program ne "") {
 		#state changed into running - now get the program options that might only be valid during run (e.g. SilenceOnDemand)
-		  $hash->{helper}->{updatePO} = 1 if ($type !~ /Coffee/); #Except for coffemakers where this would create errors
+		$hash->{helper}->{updatePO} = 1 if ($type !~ /Coffee/); #Except for coffemakers where this would create errors
+		HomeConnect_FileLog($hash,"request updatePO as $currentstate != $state and program=$program");
 	}
   }
   if ( $operationState =~ /Pause/ ) {
