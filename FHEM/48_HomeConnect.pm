@@ -1127,7 +1127,6 @@ sub HomeConnect_MakeJSON($$$) {
 	$json .= ",\"unit\":\"$def->{unit}\"" if ( defined $def->{unit} );
 	$json .= "}";
   if (!$unicodeEncoding) {#httputils will throw an internal error on "°C" otherwise
-    print "no unicode\n";
 	$json=~ s/\x{c2}//g; #Special hack - just encode will be incorrect and not accepted by API
     $json=encode_utf8($json);
   }
@@ -2090,7 +2089,6 @@ sub HomeConnect_CheckAlerts($) {
     my $value = HomeConnect_ReadingsVal($hash,$reading,"");
     my $alarm = $1;
 	next if (!$alarm or $alarm eq "" or $value eq "");
-	print "Event reading $reading ($1) = $value\n";
 	#Ignore: ProgramFinished, ProgramAborted, AlarmClockElapsed, PreheatFinished, DryingProcessFinished
 	#Alternative positive list: /(Empty)|(Full)|(Cool)|(Descal)|(Clean)|(DoorAlarm)|(TemperatureAlarm)|(Stuck)|(Found)|(Poor)|(Reached)/
 	next if ($alarm =~ /Program|AlarmClock|Finished/ );
