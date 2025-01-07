@@ -142,6 +142,7 @@ HomeConnectConnection_FwFn($$$$)
 		"WasherDryer WasherDryer-Control WasherDryer-Monitor WasherDryer-Settings " .
 		"Refrigerator Refrigerator-Control Refrigerator-Monitor Refrigerator-Settings " .
 		"Freezer Freezer-Control Freezer-Monitor Freezer-Settings " .
+		"FridgeFreezer-Control FridgeFreezer-Monitor FridgeFreezer-Settings " . #Caution: plain "FridgeFreezer" is out of scope!
 		"WineCooler WineCooler-Control WineCooler-Monitor WineCooler-Settings " .
 		"CoffeeMaker CoffeeMaker-Control CoffeeMaker-Monitor CoffeeMaker-Settings " .
 		"Hob Hob-Control Hob-Monitor Hob-Settings " .
@@ -688,6 +689,7 @@ sub HomeConnectConnection_ResponseAutocreateDevices
 		<li>WasherDryer WasherDryer-Control WasherDryer-Monitor WasherDryer-Settings</li>
 		<li>Refrigerator Refrigerator-Control Refrigerator-Monitor Refrigerator-Settings</li>
 		<li>Freezer Freezer-Control Freezer-Monitor Freezer-Settings</li>
+		<li>FridgeFreezer-Control FridgeFreezer-Monitor FridgeFreezer-Settings</li>
 		<li>WineCooler WineCooler-Control WineCooler-Monitor WineCooler-Settings</li>
 		<li>CoffeeMaker CoffeeMaker-Control CoffeeMaker-Monitor CoffeeMaker-Settings</li>
 		<li>Hob Hob-Control Hob-Monitor Hob-Settings</li>

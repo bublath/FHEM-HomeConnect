@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "1.4";
+my $HCversion = "1.5";
 #
 # $Id: xx $
 #
@@ -2044,9 +2044,12 @@ sub HomeConnect_CheckState($) {
 	$operationState = "Ready" if $operationState =~/Finished/; # There might be no event setting Finished -> Ready when Finished was by set by FHEM
   }
 
+  HomeConnect_CheckAlerts($hash);
   #This type only shows temperatures, override everything
-  if ( $type =~ /Fridge|Refridgerator|Freezer/ ) {
+  if ( $type =~ /Fridge|Refrigerator|Freezer/ ) {
+	my $alarms = ReadingsVal($name,"alarms","");
 	$state = lc $door;
+	$state = "alarm" if $alarms =~ /DoorAlarm/;
 	$state1 = HomeConnect_ReadingsVal( $hash,"Refrigeration.FridgeFreezer.Setting.SetpointTemperatureRefrigerator", "0 °C" )." °C";
 	$state2 = HomeConnect_ReadingsVal( $hash,"Refrigeration.FridgeFreezer.Setting.SetpointTemperatureFreezer", "0 °C" )." °C";
   } 
@@ -2065,7 +2068,7 @@ sub HomeConnect_CheckState($) {
   readingsBulkUpdate( $hash, "state",   $state );
   readingsBulkUpdate( $hash, "state1",  $state1 );
   readingsBulkUpdate( $hash, "state2",  $state2 );
-  HomeConnect_CheckAlerts($hash);
+
   HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Status.OperationState",  $operationState ) if $operationState ne $orgOpSt;
   readingsEndUpdate( $hash, 1 );
 
