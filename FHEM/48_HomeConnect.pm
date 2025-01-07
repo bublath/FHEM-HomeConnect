@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "1.3";
+my $HCversion = "1.4";
 #
 # $Id: xx $
 #
@@ -2045,9 +2045,8 @@ sub HomeConnect_CheckState($) {
   }
 
   #This type only shows temperatures, override everything
-  if ( $type =~ /FridgeFreezer/ ) {
-    $state = $HC_table{$lang}->{"temperature"};
-	$state = $state1 if ($door =~ /Open/); # Take the "door open" from previous door open condition
+  if ( $type =~ /Fridge|Refridgerator|Freezer/ ) {
+	$state = lc $door;
 	$state1 = HomeConnect_ReadingsVal( $hash,"Refrigeration.FridgeFreezer.Setting.SetpointTemperatureRefrigerator", "0 °C" )." °C";
 	$state2 = HomeConnect_ReadingsVal( $hash,"Refrigeration.FridgeFreezer.Setting.SetpointTemperatureFreezer", "0 °C" )." °C";
   } 
@@ -2093,6 +2092,7 @@ sub HomeConnect_CheckAlerts($) {
 	next if ($alarm =~ /Program|AlarmClock|Finished/ );
 
 	my $alarms=ReadingsVal($hash->{NAME},"alarms","");
+	my $calarms=$alarms;
 	  if ( $value =~ /Present/ ) {
 		#If alarm not yet in list - add it
 		if ( $alarms !~ $alarm ) {
@@ -2104,10 +2104,12 @@ sub HomeConnect_CheckAlerts($) {
 	    $alarms =~ s/$alarm//g;
 		$alarms =~ s/,,/,/g; #Clean potential double "," after removal
 	  }
-	  #Use Bulkupdate as this is called from within an readingsBegin/EndUpdate
-	  readingsBulkUpdate( $hash,"alarms",$alarms);
-	  my @cnt=split(",",$alarms);
-	  readingsBulkUpdate( $hash,"alarmCount",scalar @cnt);
+	  if ("$alarms" ne "$calarms") { 
+		#Use Bulkupdate as this is called from within an readingsBegin/EndUpdate
+		readingsBulkUpdate( $hash,"alarms",$alarms);
+		my @cnt=split(",",$alarms);
+		readingsBulkUpdate( $hash,"alarmCount",scalar @cnt);
+	  }
    }
   }
 }
@@ -2746,7 +2748,7 @@ sub HomeConnect_State($$$$) {			#reload readings at FHEM start
     <br/>
   </ul>
 
-  <a name="HomeConnect-set"></a>
+  <a id="HomeConnect-set"></a>
   <h4>Set</h4>
   <ul>
 	<li><b>set SelectedProgram &lt;Program Name&gt;</b><br>
@@ -2809,7 +2811,7 @@ sub HomeConnect_State($$$$) {			#reload readings at FHEM start
 	<li><b>Washer:</b> </li>
 	<li><b>Dishwasher:</b> </li>
   </ul>
-  <a name="HomeConnect_Get"></a>
+  <a id="HomeConnect-get"></a>
   <h4>Get</h4>
   <ul>
 	<li><b>get Settings</b><br>
@@ -2825,7 +2827,7 @@ sub HomeConnect_State($$$$) {			#reload readings at FHEM start
 			Retrieve the list of program specific options for the currently selected program. Your device should be switched on and set to the appropriate program to make this work properly.<br>
 			</li>
   </ul>
-  <a name="HomeConnect_Attr"></a>
+  <a id="HomeConnect-attr"></a>
   <h4>Attributes</h4>
   <ul>
 	<li><b>updateTimer &lt;Integer&gt;</b><br>
@@ -2868,7 +2870,7 @@ sub HomeConnect_State($$$$) {			#reload readings at FHEM start
 			</li>
 			
   </ul>
-  <a name="HomeConnect_Readings"></a>
+  <a id="HomeConnect-readings"></a>
   <h4>Readings</h4>
   Note: Readings are described in the abbreviated version here, if namePrefix is "1" additional prefix will be added in front.<br>
   <ul>

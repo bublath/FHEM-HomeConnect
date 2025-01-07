@@ -58,7 +58,7 @@ sub HomeConnectConnection_Set($@)
 
   return "no set value specified" if(int(@a) < 2);
   return "LoginNecessary" if($a[1] eq "?" && !defined($gotToken));
-  return "scanDevices refreshToken logout" if($a[1] eq "?");
+  return "scanDevices:noArg refreshToken:noArg logout:noArg" if($a[1] eq "?");
   if ($a[1] eq "auth") {
     return HomeConnectConnection_GetAuthToken($hash,$a[2]);
   }
@@ -609,13 +609,13 @@ sub HomeConnectConnection_ResponseAutocreateDevices
 =pod
 =begin html
 
-<a name="HomeConnectConnection"></a>
 <h3>HomeConnectConnection</h3>
+<a id="HomeConnectConnection"></a>
 <ul>
-  <a name="HomeConnectConnection_define"></a>
+  <a id="HomeConnectConnection-define"></a>
   <h4>Define</h4>
   <ul>
-    <code>define &lt;name&gt; HomeConnectConnection &lt;api_key&gt; &lt;redirect_url&gt; [simulator]</code>
+    <code>define &lt;name&gt; HomeConnectConnection &lt;api_key&gt; &lt;redirect_url&gt; [simulator] &lt;client_secret&gt;</code>
     <br/>
     <br/>
     Defines a connection and login to Home Connect Household appliances. See <a href="http://www.home-connect.com/">Home Connect</a> for details.<br>
@@ -626,20 +626,17 @@ sub HomeConnectConnection_ResponseAutocreateDevices
       <li>Create a developer account at <a href="https://developer.home-connect.com/">Home Connect for Developers</a></li>
       <li>Update your account to an <b>Advanced Account</b></li>
       <li>Create your Application under "My Applications", the REDIRECT-URL must be pointing to your local FHEM installation, e.g.<br/>
-      <code>http://localhost:8083/fhem?cmd.Test=set%20hcconn%20auth%20&fwcsrf=myToken123</code><br/></li>
-      <li>Make sure to include the rest of the URL as shown above. 
+      <code>http://fhem.local:8083/fhem?cmd.Test=set%20hcconn%20auth%20&fwcsrf=myToken123</code><br/></li>
+      <li>Make sure that "fhem.local" is replaced with a usable hostname for your FHEM. Setting it to an IP address is reported to fail. 
       <li>Note the Client ID and Client Secret after creating the Application
       <li>Now define the FHEM HomeConnectConnection device with your API Key, Secret and URL:<br/>
       <code>define hcconn HomeConnectConnection API-KEY REDIRECT-URL [simulator] CLIENT_SECRET</code><br/></li>
-      <li>Click on the link "Home Connect Login" in the device and log in to your account. The simulator will not ask for any credentials.</li>
+      <li>Click on the link "Home Connect Login" in the device and log in to your account.</li>
       <li>Execute the set scanDevices action to create FHEM devices for your appliances.</li>
     </ul>
-    <br/>
-	Currently, Home Connect API only supports the Simulator instead of your real Appliances unless you are a Home Connect beta tester.
-        So the keyword <b>simulator</b> needs to be added to the definition.
-    <br/>
-	If your FHEM server does not run on localhost, please change the REDIRECT-URL accordingly
-	<br/>
+	  The simulator may have an issue with the complex URL and report an "internal error". Workaround: just set http://fhem.local:8030/fhem.html as URL. After successful login the FHEM home page is called. Now check the URL line of your browser. Copy it into an editor and extract the "code=...." piece (ending at the next "&". If %3D (or other % escapes) are in the string, they need to be reverted to ASCII. %3D is "="<br>
+	  Finally call "set hcconn auth code=...." - that should connect you to the simulator. This may also be a workaround if you have problems with the productive setup.<br> 
+ 	<br/>
 	If you would like to name your HomeConnectConnection differently or if you need to connect to more than one account, the name hcconn may be changed.
 	Make sure to update the new name into your REDIRECT-URL (both in FHEM and Home Connect). If you want to use more than one connection, you can list 
         both redirect-URLs in your Home Connect Application.
@@ -653,29 +650,51 @@ sub HomeConnectConnection_ResponseAutocreateDevices
     </ul>
   </ul>
   <br/>
-  <a name="HomeConnectConnection_set"></a>
-  <b>Set</b>
+  
+  <a id="HomeConnectConnection-set"></a>
+  <h4>Set</h4>  
   <ul>
-    <li>scanDevices<br/>
+  	<li><b>set scanDevices</b><br>
+		<a id="HomeConnectConnection-set-scanDevices"></a>
       Start a device scan of the Home Connect account. The registered Home Connect devices are then created automatically
       in FHEM. The device scan can be started several times and will not duplicate devices as long as they have not been
       renamed in FHEM. You should change the alias attribute instead.
       </li>
-    <li>refreshToken<br/>
+  	<li><b>set refreshToken</b><br>
+		<a id="HomeConnectConnection-set-refreshToken"></a>
       Manually refresh the access token. This should be necessary only after internet connection problems.
       </li>
-    <li>logout<br/>
+  	<li><b>set logout</b><br>
+		<a id="HomeConnectConnection-set-logout"></a>
       Delete the access token and refresh tokens, and show the login link again.
       </li>
   </ul>
   <br/>
-  <a name="HomeConnectConnection_Attr"></a>
+  <a id="HomeConnect-attr"></a>
   <h4>Attributes</h4>
   <ul>
-	<li>AccessScope<br/>
-	  Change this attribute to limit the access rights given to FHEM. The default is:  
-	  <b>IdentifyAppliance Monitor Settings Dishwasher-Control Washer-Control Dryer-Control CoffeeMaker-Control</b>
-	  Minimum setting would be <b>IdentifyAppliance Monitor</b>. This minimum setting will also work for non-advanced Home Connect Developer Accounts.
+	<li>accessScope &lt;scope list&gt;<br/>
+		<a id="HomeConnectConnection-attr-accessScope"></a>
+	  Change this attribute to limit the access rights given to FHEM. The default is to submit all currently available<br>
+	  The individual items are separated by spaces. It is important to correctly specify them. Any typo will lead to a reject when doing the login, without any information what the offending item was.<br>
+	  Minimum setting would be "IdentifyAppliance Monitor"<br>
+	  <ul>
+	  <b>Full list of currently available access scopes (grouped by appliances, each space separated item can be used individually):</b>
+		<li>IdentifyAppliance Monitor Settings Control</li>
+		<li>Oven Oven-Control Oven-Monitor Oven-Settings</li>
+		<li>Dishwasher Dishwasher-Control Dishwasher-Monitor Dishwasher-Settings</li>
+		<li>Washer Washer-Control Washer-Monitor Washer-Settings</li>
+		<li>Dryer Dryer-Control Dryer-Monitor Dryer-Settings</li>
+		<li>WasherDryer WasherDryer-Control WasherDryer-Monitor WasherDryer-Settings</li>
+		<li>Refrigerator Refrigerator-Control Refrigerator-Monitor Refrigerator-Settings</li>
+		<li>Freezer Freezer-Control Freezer-Monitor Freezer-Settings</li>
+		<li>WineCooler WineCooler-Control WineCooler-Monitor WineCooler-Settings</li>
+		<li>CoffeeMaker CoffeeMaker-Control CoffeeMaker-Monitor CoffeeMaker-Settings</li>
+		<li>Hob Hob-Control Hob-Monitor Hob-Settings</li>
+		<li>Hood Hood-Control Hood-Monitor Hood-Settings</li>
+		<li>CleaningRobot CleaningRobot-Control CleaningRobot-Monitor CleaningRobot-Settings</li>
+		<li>CookProcessor CookProcessor-Control CookProcessor-Monitor CookProcessor-Settings</li>
+		</ul>
       </li>
   </ul>
   <br/>
