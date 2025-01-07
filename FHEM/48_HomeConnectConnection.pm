@@ -57,7 +57,7 @@ sub HomeConnectConnection_Set($@)
   my ($gterror, $gotToken) = getKeyValue($hash->{NAME}."_accessToken");
 
   return "no set value specified" if(int(@a) < 2);
-  return "LoginNecessary" if($a[1] eq "?" && !defined($gotToken));
+  return "auth:textField" if($a[1] eq "?" && !defined($gotToken));
   return "scanDevices:noArg refreshToken:noArg logout:noArg" if($a[1] eq "?");
   if ($a[1] eq "auth") {
     return HomeConnectConnection_GetAuthToken($hash,$a[2]);
@@ -135,23 +135,25 @@ HomeConnectConnection_FwFn($$$$)
 
     my $scope = AttrVal($hash->{NAME}, "accessScope",
 		"IdentifyAppliance Monitor Settings Control " .
-		"Oven Oven-Control Oven-Monitor Oven-Settings " .
-		"Dishwasher Dishwasher-Control Dishwasher-Monitor Dishwasher-Settings " .
-		"Washer Washer-Control Washer-Monitor Washer-Settings " .
-		"Dryer Dryer-Control Dryer-Monitor Dryer-Settings " .
-		"WasherDryer WasherDryer-Control WasherDryer-Monitor WasherDryer-Settings " .
-		"Refrigerator Refrigerator-Control Refrigerator-Monitor Refrigerator-Settings " .
-		"Freezer Freezer-Control Freezer-Monitor Freezer-Settings " .
+		"Oven " .
+		"Dishwasher " .
+		"Washer " .
+		"Dryer " .
+		"WasherDryer " .
+		"Refrigerator " .
+		"Freezer " .
 		"FridgeFreezer-Control FridgeFreezer-Monitor FridgeFreezer-Settings " . #Caution: plain "FridgeFreezer" is out of scope!
-		"WineCooler WineCooler-Control WineCooler-Monitor WineCooler-Settings " .
-		"CoffeeMaker CoffeeMaker-Control CoffeeMaker-Monitor CoffeeMaker-Settings " .
-		"Hob Hob-Control Hob-Monitor Hob-Settings " .
-		"Hood Hood-Control Hood-Monitor Hood-Settings " .
-		"CleaningRobot CleaningRobot-Control CleaningRobot-Monitor CleaningRobot-Settings " .
-		"CookProcessor CookProcessor-Control CookProcessor-Monitor CookProcessor-Settings " .
+		"WineCooler " .
+		"CoffeeMaker " .
+		"Hob " .
+		"Hood " .
+		"CleaningRobot " .
+		"CookProcessor " .
 		"");
 
 	$scope =~ s/\s$//; #Remove potential trailing space
+
+    $hash->{accessScope}=$scope;
 
     my $csrfToken = InternalVal("WEB", "CSRFTOKEN", "HomeConnectConnection_auth");
 
@@ -669,6 +671,11 @@ sub HomeConnectConnection_ResponseAutocreateDevices
 		<a id="HomeConnectConnection-set-logout"></a>
       Delete the access token and refresh tokens, and show the login link again.
       </li>
+  	<li><b>set auth</b><br>
+		<a id="HomeConnectConnection-set-auth"></a>
+		This should be automatically be triggered by the callback from the authorization request, but if that fails, you will find an URL looking like this in your browser URL field:<br>	http://fhem.local:8083/fhem.html?code=&lt;long string with letters and digits&gt;&state=HomeConnectConnection_auth<br>
+		Extract the "code=string" part and paste it into set "set auth" to do a manual authentification. You might need to replace %XX with ASCII (e.g. %3D with "=")<br>
+      </li>
   </ul>
   <br/>
   <a id="HomeConnect-attr"></a>
@@ -697,6 +704,7 @@ sub HomeConnectConnection_ResponseAutocreateDevices
 		<li>CleaningRobot CleaningRobot-Control CleaningRobot-Monitor CleaningRobot-Settings</li>
 		<li>CookProcessor CookProcessor-Control CookProcessor-Monitor CookProcessor-Settings</li>
 		</ul>
+		Note that "Dryer" is kind of a superset to "Dryer-Control Dryer-Monitor Dryer-Settings", so the individual items are not required.<br>
       </li>
   </ul>
   <br/>
