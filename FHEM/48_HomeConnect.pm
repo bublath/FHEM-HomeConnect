@@ -2411,8 +2411,6 @@ sub HomeConnect_ReadEventChannel($) {
 	  my $operationState = HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.OperationState", "" );
 	  HomeConnect_FileLog($hash,"Event:".Dumper($jhash));
 
-	  my $isalarmoff = 0;
-
 	  readingsBeginUpdate($hash);
 
 	  for ( my $i = 0 ; 1 ; $i++ ) {
@@ -2455,6 +2453,8 @@ sub HomeConnect_ReadEventChannel($) {
 		  #If the device estimates the total time, the FinishInRelative would contain some potential garbage number - reset
 		  HomeConnect_readingsBulkUpdate( $hash,"BSH.Common.Option.FinishInRelative",0);
 		  $checkstate=1;
+		} elsif ( $key =~ /LocalControlActive/ ) {
+		  $updatestatus=1 if ($value =~ /Off/); #Update readings after user did something with the appliance
 		} elsif ( $key =~ /SelectedProgram/ ) {
 		  #Need to get program options when changing program except on power off where this gets set to undef
 		  $hash->{helper}->{updatePO} = 1 if $value;
