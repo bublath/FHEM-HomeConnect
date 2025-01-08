@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "1.5";
+my $HCversion = "1.6";
 #
 # $Id: xx $
 #
@@ -2181,8 +2181,12 @@ sub HomeConnect_CheckProgram {
   #Can only query if a program is either selected or active - prefer active here
   my $query="";
   $query="selected" if HomeConnect_ReadingsVal( $hash, "BSH.Common.Setting.SelectedProgram", "" );
-  $query="active" if HomeConnect_ReadingsVal( $hash, "BSH.Common.Setting.ActiveProgram", "" );
+  my $active=HomeConnect_ReadingsVal( $hash, "BSH.Common.Setting.ActiveProgram", "" );
+  $query="active" if $active;
   return if $query eq "";
+  
+  my $operationState = HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.OperationState", "" );
+  $query="active" if $operationState =~ /Run/ and !$active; #Some appliances do not set ActiveProgram
   
   #-- Get status variables
   my $data = {
