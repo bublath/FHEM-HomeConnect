@@ -1614,7 +1614,13 @@ sub HomeConnect_GetPrograms {
   #If no programs are set, try to get it from hidden reading
   if (!$hash->{programs}) {
 	 my $programs=ReadingsVal($name,".programs",undef); 
-	 $hash->{programs}=$programs if $programs;
+	 if ($programs) {
+		$hash->{programs}=$programs;
+	 } else {
+		 #Get from hardcoded defaults
+		my @prgs=(keys %{$HomeConnect_DeviceTrans_DE{$hash->{type}}});
+		$hash->{programs}=join(",",@prgs);
+	}
   }
 
 #-- we do not get a list of programs if a program is active, so we just use the active program name
@@ -1685,6 +1691,7 @@ sub HomeConnect_ResponseGetPrograms {
 	$hash->{programs} = $programs;
 	readingsSingleUpdate($hash,".programs",$programs,0); #Also remember in hidden reading
   } else {
+    HomeConnect_FileLog($hash,"ProgramList:".$hash->{programs});
 	$msg = "[HomeConnect_ResponseGetPrograms] $name: no programs found";
 	readingsSingleUpdate( $hash, "lastErr", "No programs found", 1 );
 	Log3 $name, 1, $msg;
@@ -2050,8 +2057,15 @@ sub HomeConnect_CheckState($) {
 	my $alarms = ReadingsVal($name,"alarms","");
 	$state = lc $door;
 	$state = "alarm" if $alarms =~ /DoorAlarm/;
-	$state1 = HomeConnect_ReadingsVal( $hash,"Refrigeration.FridgeFreezer.Setting.SetpointTemperatureRefrigerator", "0 °C" )." °C";
-	$state2 = HomeConnect_ReadingsVal( $hash,"Refrigeration.FridgeFreezer.Setting.SetpointTemperatureFreezer", "0 °C" )." °C";
+	my $tr = HomeConnect_ReadingsVal( $hash,"Refrigeration.FridgeFreezer.Setting.SetpointTemperatureRefrigerator", undef );
+	my $tf = HomeConnect_ReadingsVal( $hash,"Refrigeration.FridgeFreezer.Setting.SetpointTemperatureFreezer", undef );
+	$tr.=" °C" if defined($tr) and $tr!~ /C/;
+	$tf.=" °C" if defined($tf) and $tf!~ /C/;	
+	$state1 = "-";
+	$state2 = "-";
+	$state1 = $tr if defined($tr);
+	$state2 = $tf if defined($tf);
+	if ($state1 eq "-") { $state1=$state2; $state2="-";}
   } 
 
   HomeConnect_FileLog($hash, "[HomeConnect_CheckState] to s:$state d:$door o:$operationState 1:$state1 2:$state2");
@@ -2671,8 +2685,8 @@ sub HomeConnect_FileLog($$) {
 	return if (!$hash->{logfile});
 	my $logdev=$defs{$hash->{NAME}."_log"};
 	return if (!defined $logdev);
-	$msg =~ s/homeappliances\/[0-9]+\//homeappliances\/XXXX\//mg;
-	$msg =~ s/'haId' => '[0-9]+'/'haId' => 'XXXX'/mg;
+	$msg =~ s/homeappliances\/[\w|-]+\//homeappliances\/XXXX\//mg;
+	$msg =~ s/'haId' => '\/[\w|-]+\/'/'haId' => 'XXXX'/mg;
 	my $fh = $logdev->{FH};
 	if (!$fh) {
 		#Log into normal log if something is wrong with filehandle
