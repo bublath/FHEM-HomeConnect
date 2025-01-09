@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "1.8";
+my $HCversion = "1.9";
 #
 # $Id: xx $
 #
@@ -1846,7 +1846,7 @@ sub HomeConnect_ParseKeys($$$) {
 	#Specific for settings
     my $svalue=$line->{value};
 	my $stype;
-	if ($svalue) {
+	if ($svalue and ($svalue !~ /^\d+$/) and ($svalue !~ /^\d+\.\d+/)) { #Not for Int or float numbers
 		$svalue =~ s/(.*)\.//; #Remove prefix from Setting Values
 		$stype = $1; #Store prefix as type
 	}
@@ -1862,9 +1862,10 @@ sub HomeConnect_ParseKeys($$$) {
 		#SpecialCase for enumerator On/Off when now enumarations are set in "check" mode
 		$allowedvals="On,Off";
 	}
+	HomeConnect_FileLog($hash,"Checking key $key $orgarea $option $svalue\n");
 	my $unit=$line->{unit};
 	$unit = undef if (defined($unit) and $line->{unit} =~ /(E|e)num/); #Stupid coffeemaker has "enum" as unit
-	if (($key !~ /Common/ or $key =~ /InRelative/) and ($orgarea ne "check" or defined($hash->{data}->{$area}->{$key}))) { #Checkprogram shall only update existing values
+	if ($orgarea ne "check" or defined($hash->{data}->{$area}->{$option})) { #Checkprogram shall only update existing values
 		HomeConnect_SetOption($hash,$area,$option,"name",$key); #Full key needed to issue command
 		HomeConnect_SetOption($hash,$area,$option,"min",$line->{constraints}->{min}); #could be used for range checking
 		HomeConnect_SetOption($hash,$area,$option,"max",$line->{constraints}->{max}); #could be used for range checking
@@ -1876,10 +1877,11 @@ sub HomeConnect_ParseKeys($$$) {
 		$svalue=HomeConnect_SetOption($hash,$area,$option,"value",$svalue); #for settings
 		HomeConnect_SetOption($hash,$area,$option,"type",$stype); #for settings
 		HomeConnect_SetOption($hash,$area,$option,"unit",$unit); #for settings
+		$hash->{data}->{value}->{$option}=$svalue if ($svalue and $key !~ /Common/); #Exclude Common keys
+		$hash->{data}->{value}->{$option}=$svalue if ($svalue and $key =~ /Duration/);	#Include some special Common keys
 	} 
 	
 	next if ($orgarea eq "check" and AttrVal($name,"extraInfo",0) eq "0"); #Skip extra readings if not desired
-	$hash->{data}->{value}->{$option}=$svalue if ($svalue and $key !~ /Common/);
 	#Also put this into readings
 	$svalue.=" ".$unit if $unit;
 	HomeConnect_readingsBulkUpdate( $hash, $key, $svalue ) if ($area =~ /settings|status/ and $svalue); #Only for settings - options come with events
@@ -1893,7 +1895,7 @@ sub HomeConnect_SetOption($$$$$) {
   my ($hash,$area,$key,$target,$value) = @_;
   return if (!defined $value or $value eq "");
   if (ref($value) eq "JSON::PP::Boolean") {
-	$value=$value?1:0; #Convert to normal 0/1
+	$value=$value?"On":"Off"; #Convert to normal 0/1
   }
   $hash->{data}->{$area}->{$key}->{$target}=$value;
   return $value; #Use for conversion
@@ -1973,6 +1975,7 @@ sub HomeConnect_CheckState($) {
   $tim=$pct."%" if ($tim eq "0:00" and $pct>0); #E.g. for coffemaker that just gives a %
 
   HomeConnect_FileLog($hash, "[HomeConnect_CheckState] V$HCversion from s:$currentstate d:$door o:$orgOpSt");
+  $hash->{version}=$HCversion;
 
   my $state1 = "";
   my $state2 = "";
@@ -2400,7 +2403,14 @@ sub HomeConnect_ReadEventChannel($) {
 	my ($id)    = $inputbuf =~ /^id\:(.*)$/m;
 	my ($json)  = $inputbuf =~ /^data\:(.*)$/m;
 	my ($http)  = $inputbuf =~ /^HTTP\/1.1 (.*) OK/m;
-
+    my ($error) = $inputbuf =~ /\"error\"\:(.*)$/m;
+ 
+    if (!$event and !$http and $error) {
+	  Log3 $name, 5, "[HomeConnect_ReadEventChannel] $name: Error reading event channel:\"$inputbuf\"";
+	  HomeConnect_CloseEventChannel($hash);
+	  return undef;
+	}
+	
 	if ($http) {
 	  if ( $http ne "200" ) {
 		Log3 $name, 2, "[HomeConnect_ReadEventChannel] $name: event channel received an http error: $_";
