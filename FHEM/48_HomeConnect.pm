@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "1.7";
+my $HCversion = "1.8";
 #
 # $Id: xx $
 #
@@ -1864,7 +1864,7 @@ sub HomeConnect_ParseKeys($$$) {
 	}
 	my $unit=$line->{unit};
 	$unit = undef if (defined($unit) and $line->{unit} =~ /(E|e)num/); #Stupid coffeemaker has "enum" as unit
-	if ($key !~ /Common/ and ($orgarea ne "check" or defined($hash->{data}->{$area}->{$key}))) { #Checkprogram shall only update existing values
+	if (($key !~ /Common/ or $key =~ /InRelative/) and ($orgarea ne "check" or defined($hash->{data}->{$area}->{$key}))) { #Checkprogram shall only update existing values
 		HomeConnect_SetOption($hash,$area,$option,"name",$key); #Full key needed to issue command
 		HomeConnect_SetOption($hash,$area,$option,"min",$line->{constraints}->{min}); #could be used for range checking
 		HomeConnect_SetOption($hash,$area,$option,"max",$line->{constraints}->{max}); #could be used for range checking
