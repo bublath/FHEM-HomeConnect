@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "1.11";
+my $HCversion = "1.12";
 #
 # $Id: xx $
 #
@@ -329,6 +329,50 @@ $HomeConnect_DeviceTrans_DE{"WasherDryer"} = {
   "Rinse.Rinse.Rinse"                         => "Spülen",
   "Spin.Spin.SpinDrain"                       => "Schleudern/Abpumpen"
 };
+
+#CookProcessor
+$HomeConnect_DeviceSettings{"CookProcessor"} = [ "BrightnessDisplay", "SoundVolume", "PowerState" ];
+$HomeConnect_DevicePrefix{"CookProcessor"}   = "ConsumerProducts.CookProcessor";
+$HomeConnect_DevicePowerOff{"CookProcessor"} = "PowerOff";
+$HomeConnect_DeviceEvents{"CookProcessor"}   = ["StepFinished"];
+$HomeConnect_DeviceTrans_DE{"CookProcessor"} = {
+"BuildingBlock.AutomaticWarmingUpViscousDishes" => "AutomaticWarmingUpViscousDishes",
+"BuildingBlock.Beating" => "Beating",
+"BuildingBlock.Boiling" => "Boiling",
+"BuildingBlock.BraisingBigParts" => "BraisingBigParts",
+"BuildingBlock.Caramelizing" => "Caramelizing",
+"BuildingBlock.ColdPreCleaning" => "ColdPreCleaning",
+"BuildingBlock.CookingSugarSirup" => "CookingSugarSirup",
+"BuildingBlock.DoughProving" => "DoughProving",
+"BuildingBlock.FryingRoastingSearing" => "FryingRoastingSearing",
+"BuildingBlock.HeatingManualMode1" => "HeatingManualMode1",
+"BuildingBlock.HeatingManualMode3" => "HeatingManualMode3",
+"BuildingBlock.KeepWarmHighViscous" => "KeepWarmHighViscous",
+"BuildingBlock.KneadingHeavyDough" => "KneadingHeavyDough",
+"BuildingBlock.LeaveToCulture" => "LeaveToCulture",
+"BuildingBlock.ManualCookingParameter" => "ManualCookingParameter",
+"BuildingBlock.Melting" => "Melting",
+"BuildingBlock.MixingBatter" => "MixingBatter",
+"BuildingBlock.Pureeing" => "Pureeing",
+"BuildingBlock.ServingOrKeepWarmHighViscous" => "ServingOrKeepWarmHighViscous",
+"BuildingBlock.SimmeringFruitSpread" => "SimmeringFruitSpread",
+"BuildingBlock.SimmeringLiquidDishes" => "SimmeringLiquidDishes",
+"BuildingBlock.Soaking" => "Soaking",
+"BuildingBlock.SteamingHigh" => "SteamingHigh",
+"BuildingBlock.SteamingHighReduced" => "SteamingHighReduced",
+"BuildingBlock.SteamingLow" => "SteamingLow",
+"BuildingBlock.SteamingTowerCooking" => "SteamingTowerCooking",
+"BuildingBlock.Stewing" => "Stewing",
+"BuildingBlock.StewingSensibleDishes" => "StewingSensibleDishes",
+"BuildingBlock.Stirring" => "Stirring",
+"BuildingBlock.Sweating" => "Sweating",
+"BuildingBlock.WarmingMilk" => "WarmingMilk",
+"BuildingBlock.WarmingUpLiquidDishes" => "WarmingUpLiquidDishes",
+"BuildingBlock.WaterFastBoiling" => "WaterFastBoiling",
+"BuildingBlock.WeighingVolume" => "WeighingVolume",
+"Manual" => "Manual"
+};
+
 
 #LaundryCare.WasherDryer.Option.ProgramMode
 #LaundryCare.WasherDryer.EnumType.ProgramMode.WashingAndDrying
