@@ -153,8 +153,6 @@ HomeConnectConnection_FwFn($$$$)
 
 	$scope =~ s/\s$//; #Remove potential trailing space
 
-    $hash->{accessScope}=$scope;
-
     my $csrfToken = InternalVal("WEB", "CSRFTOKEN", "HomeConnectConnection_auth");
 
     $fmtOutput = "<a href=\"$hash->{api_uri}/security/oauth/authorize?response_type=code" .
@@ -452,6 +450,7 @@ sub HomeConnectConnection_CallbackRefreshToken
           readingsBeginUpdate($conn);
           readingsBulkUpdate($conn, "tokenExpiry", scalar localtime $conn->{expires_at});
           readingsBulkUpdate($conn, "state", $conn->{STATE});
+		  readingsBulkUpdate($conn, "accessScope", $json->{scope});
           readingsEndUpdate($conn, 1);
           RemoveInternalTimer($conn);
           InternalTimer(gettimeofday()+$json->{expires_in}*3/4,
