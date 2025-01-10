@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "1.10";
+my $HCversion = "1.11";
 #
 # $Id: xx $
 #
@@ -648,7 +648,10 @@ sub HomeConnect_Response() {
 		my $desc=$jhash->{"error"}->{"description"};
 		if ($desc) {
 			my $key=$jhash->{"error"}->{"key"};
-			if ($desc =~ /not supported/ or $key eq "404" or $key eq "insufficient_scope") {  
+			if ($key =~ /SDK.Error.UnsupportedSetting/ or 
+			    $key =~ /SDK.Error.UnsupportedOption/ or 
+				$key =~ or $key eq "404" or 
+				$key eq "insufficient_scope") {  
 			    #Unfortunately the API returns 'SDK.Error.UnsupportedSetting' for both the API call and the setting itself
 				#So checking the description is the only way to distinguish
 				#Remembering that a setting does not work, so we can exclude it in future. Doing it in an attribute lets users revert that decision
@@ -656,7 +659,7 @@ sub HomeConnect_Response() {
 				#key "insufficient_scope" indicates that this is (currently) not possible via API
  				HomeConnect_AddExclude($name,$path);
 				HomeConnect_CheckProgram($hash); #Check Program State again, so incorrectly changed readings get corrected
-			} elsif ($desc =~ /Command: .*\.(.*) not supported/) {
+			} elsif ($key =~ /SDK.Error.UnsupportedCommand/) {
 				#Same for commands, some commands do not work for specific models (e.g. PauseProgram)
 				HomeConnect_AddExclude($name,$1);
 		    }
@@ -1423,7 +1426,8 @@ sub HomeConnect_StartProgram($) {
 #   TODO: REALLY ?? NO, WRONG !! StartInRelative can no longer be set separately!
 	next
 	  if ( defined( $hash->{data}->{options}->{$key}->{update} )
-	  && $hash->{data}->{options}->{$key}->{update} == 1 );
+	  && $hash->{data}->{options}->{$key}->{update} eq "On" );
+	next if (!defined ($hash->{data}->{value}->{$key})); #Don't include values we're currently not allowed to set (like SilenceOnDemand)
 
 	my $value = HomeConnect_ReadingsVal( $hash, $hash->{data}->{options}->{$key}->{name}, "" );
 
@@ -1634,7 +1638,7 @@ sub HomeConnect_GetPrograms {
 #-- we do not get a list of programs if a program is active, so we just use the active program name
   my $operationState = ReadingsVal( $name, "BSH.Common.Status.OperationState", "" );
 
-  if ( $operationState =~ /((Active)|(DelayedStart)|(Run))/ ) {
+  if ( $operationState =~ /((Active)|(DelayedStart)|(Run)|(Pause)/ ) {
 	  return; #Do not try to get programs at all in these cases
   } 
 
@@ -1732,13 +1736,14 @@ sub HomeConnect_GetProgramOptions {
   my $operationState = HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.OperationState", "" );
   my $query="";
 
+  #TEST: Need to add DelayedStart to query from "active" as well?
   #-- first try active program as it might be more accurate than "selected"
   my $sprogram =	HomeConnect_ReadingsVal( $hash, "BSH.Common.Setting.SelectedProgram", "" );
-  $query="available/$programPrefix$sprogram" if ($sprogram ne "" and $operationState !~ /Run|Finished/);
+  $query="available/$programPrefix$sprogram" if ($sprogram ne "" and $operationState !~ /Run|Finished|Pause/);
   my $aprogram = HomeConnect_ReadingsVal( $hash, "BSH.Common.Setting.ActiveProgram", "" );
-  $query="available/$programPrefix$aprogram" if ($aprogram ne "" and $operationState !~ /Run|Finished/);
+  $query="available/$programPrefix$aprogram" if ($aprogram ne "" and $operationState !~ /Run|Finished|Pause/);
 
-  $query="active/options" if ($query eq "" and $operationState =~ /Run|Finished/); #Use "active" even if ActiveProgram is not present when running
+  $query="active/options" if ($query eq "" and $operationState =~ /Run|Finished|Pause/); #Use "active" even if ActiveProgram is not present when running
 
   if ( $query eq "") {
 	readingsSingleUpdate( $hash, "lastErr", "No programs selected or active", 1 );
@@ -1880,8 +1885,10 @@ sub HomeConnect_ParseKeys($$$) {
 		$svalue=HomeConnect_SetOption($hash,$area,$option,"value",$svalue); #for settings
 		HomeConnect_SetOption($hash,$area,$option,"type",$stype); #for settings
 		HomeConnect_SetOption($hash,$area,$option,"unit",$unit); #for settings
-		$hash->{data}->{value}->{$option}=$svalue if ($svalue and $key !~ /Common/); #Exclude Common keys
-		$hash->{data}->{value}->{$option}=$svalue if ($svalue and $key =~ /Duration/);	#Include some special Common keys
+		if (defined($hash->{data}->{value}->{$option}) or $orgarea ne "check") { #Avoid setting values in "check" that are not valid
+			$hash->{data}->{value}->{$option}=$svalue?$svalue:"" if ($key !~ /Common/); #Exclude Common keys
+			$hash->{data}->{value}->{$option}=$svalue?$svalue:"" if ($key =~ /Duration/);	#Include some special Common keys
+		}
 	} 
 	
 	next if ($orgarea eq "check" and AttrVal($name,"extraInfo",0) eq "0"); #Skip extra readings if not desired
@@ -2196,7 +2203,7 @@ sub HomeConnect_CheckProgram {
   my $operationState = HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.OperationState", "" );
   #Clear accidentially set ActiveProgram
   HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Setting.ActiveProgram", undef,1 ) if ($active && $operationState =~ /Ready|Inactive/);
-  $query="active" if $operationState =~ /Run|Finished/;
+  $query="active" if $operationState =~ /Run|Finished|Pause/; #TEST: Need DelayedStart as well here?
   return if $query eq "";
     
   #-- Get status variables
