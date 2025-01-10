@@ -650,7 +650,7 @@ sub HomeConnect_Response() {
 			my $key=$jhash->{"error"}->{"key"};
 			if ($key =~ /SDK.Error.UnsupportedSetting/ or 
 			    $key =~ /SDK.Error.UnsupportedOption/ or 
-				$key =~ or $key eq "404" or 
+				$key eq "404" or 
 				$key eq "insufficient_scope") {  
 			    #Unfortunately the API returns 'SDK.Error.UnsupportedSetting' for both the API call and the setting itself
 				#So checking the description is the only way to distinguish
@@ -1638,7 +1638,7 @@ sub HomeConnect_GetPrograms {
 #-- we do not get a list of programs if a program is active, so we just use the active program name
   my $operationState = ReadingsVal( $name, "BSH.Common.Status.OperationState", "" );
 
-  if ( $operationState =~ /((Active)|(DelayedStart)|(Run)|(Pause)/ ) {
+  if ( $operationState =~ /(Active)|(DelayedStart)|(Run)|(Pause)/ ) {
 	  return; #Do not try to get programs at all in these cases
   } 
 
