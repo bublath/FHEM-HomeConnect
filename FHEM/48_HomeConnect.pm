@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "1.9";
+my $HCversion = "1.10";
 #
 # $Id: xx $
 #
@@ -714,6 +714,7 @@ sub HomeConnect_HandleError($$) {
 	  #-- key SDK.Error.HomeAppliance.Connection.Initialization.Failed
 	  HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Status.OperationState", "Offline", 1 );
 	  $hash->{STATE} = "Offline";
+	  HomeConnect_readingsSingleUpdate($hash,"BSH.Common.Setting.PowerState","Off",1);
 	  #In offline case, the initalization should just continue to next stage
 	  $hash->{helper}->{init}="programs_done" if $hash->{helper}->{init} eq "programs";
 	  $hash->{helper}->{init}="settings_done" if $hash->{helper}->{init} eq "settings";
@@ -1168,6 +1169,8 @@ sub HomeConnect_PowerState($$) {
 	data    => $json
   };
   HomeConnect_Request( $hash, $data );
+  #Update reading as some devices don't send an update when switching off
+  HomeConnect_readingsSingleUpdate($hash,"BSH.Common.Setting.PowerState","Off",1) if $target =~ /Off/;
 }
 
 ###############################################################################
@@ -1823,7 +1826,7 @@ sub HomeConnect_ParseKeys($$$) {
   return if (!$jhash->{data}->{$area});
 
   #delete $hash->{data}->{$orgarea}; #use orgarea here as "check" should not overwrite "options"
-  delete $hash->{data}->{value} if $orgarea ne "check"; #"options" keeps the default, "value" shows current values and indicates what's active
+  delete $hash->{data}->{value} if $orgarea eq "options"; #"options" keeps the default, "value" shows current values and indicates what's active
   my $arr=$jhash->{data}->{$area};
   $hash->{helper}->{key}=$jhash->{data}->{key};
 
