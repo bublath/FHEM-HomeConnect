@@ -1,3 +1,7 @@
+Jan 13, 2024
+	Separated configurations into HomeConnectConf.pm
+	timeout attribute for HomeConnectConnection
+
 Dec 22, 2024
 	Complete rewrite - too many changes to mention here
 

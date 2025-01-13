@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "1.12";
+my $HCversion = "1.13";
 #
 # $Id: xx $
 #
@@ -41,396 +41,12 @@ use Encode;
 
 use vars qw(%defs);
 require 'HttpUtils.pm';
+use HomeConnectConf;
 
-##############################################
-
-my %HC_table = (
-	"DE" => {
-  "ok"          => "OK",
-  "notok"       => "Nicht OK",
-  "at"          => "um",
-  "program"     => "Programm",
-  "active"      => "aktiv",
-  "inactive"    => "inaktiv",
-  "offline"     => "Offline",
-  "open"        => "offen",
-  "closed"      => "geschlossen",
-  "locked"      => "verriegelt",
-  "still"       => "noch",
-  "remaining"   => "verbleiben",
-  "whichis"     => "dieses ist zu",
-  "endingat"    => "und endet um",
-  "remotestart" => "Fernstart",
-  "running"     => "Läuft",
-  "inactiveC"   => "Ruhezustand",
-  "ready"       => "Bereit",
-  "delayedstart"  => "Start um",
-  "delayend"    => "Ende um",
-  "pause"       => "Pause",
-  "actionreq"   => "Eingriff nötig",
-  "finished"    => "Fertig",
-  "error"       => "Fehlerzustand",
-  "abort"       => "Abbruch",
-  "standby"     => "Standby",
-  "childlock"   => "Kindersicherung",
-  "door"        => "Tür",
-  "alarm"       => "Kurzzeitwecker um",
-  "delayed"     => "Verzögert",
-  "action"      => "Eingriff nötig",
-  "done"        => "Fertig",
-  "idle"        => "Bereit",
-  "door"        => "Tür",
-  "on"			=> "An",
-  "off"			=> "Aus",
-  "autostart"   => "Autostart",
-  "temperature" => "Temperatur"
-	},
-	"EN" => {
-  "ok"          => "OK",
-  "notok"       => "Not OK",
-  "at"          => "at",
-  "program"     => "program",
-  "active"      => "active",
-  "inactive"    => "inactive",
-  "offline"     => "offline",
-  "open"        => "open",
-  "closed"      => "closed",
-  "locked"      => "locked",
-  "still"       => "still",
-  "remaining"   => "remaining",
-  "whichis"     => "which is",
-  "endingat"    => "and ending at",
-  "remotestart" => "remote start",
-  "running"     => "running",
-  "inactiveC"   => "inactive",
-  "ready"       => "ready",
-  "delayedstart"  => "Start at",
-  "delayend"    => "end at",
-  "pause"       => "pause",
-  "actionreq"   => "action required",
-  "finished"    => "finished",
-  "error"       => "error",              #state
-  "abort"       => "aborting",           #state
-  "standby"     => "standby",
-  "childlock"   => "child lock",
-  "door"        => "door",
-  "alarm"       => "alarm at",
-  "delayed"     => "delayed",            #state
-  "action"      => "action required",    #state
-  "done"        => "done",               #state
-  "idle"        => "idle",               #state
-  "door"        => "door",
-  "on"			=> "on",
-  "off"			=> "off",
-  "autostart"   => "autostart",
-  "temperature" => "temperature"
-	}
-);
-
-my %HomeConnect_Iconmap = (
-  "Dishwasher"    => "scene_dishwasher",
-  "Hob"           => "scene_cooktop",
-  "Oven"          => "scene_baking_oven",
-  "FridgeFreezer" => "scene_wine_cellar",
-  "Washer"        => "scene_washing_machine",
-  "Dryer"         => "scene_clothes_dryer",
-  "CoffeeMaker"   => "max_heizungsthermostat"
-);
-
-my %HomeConnect_DeviceSettings;
-my %HomeConnect_DevicePrefix;
-my %HomeConnect_DevicePowerOff;
-my %HomeConnect_DeviceEvents;
-my %HomeConnect_DeviceTrans_DE;
-
-#-- Dishwasher
-#   known settings ChildLock,PowerState
-#   known programs Intensiv70,Auto2,Eco50,Quick45,PreRinse,NightWash,Kurz60,MachineCare
-#   program downwloads: LearningDishwasher,QuickD
-#   known problems: Option SilenceOnDemand only available when program is running
-$HomeConnect_DeviceSettings{"Dishwasher"} = [ "ChildLock:On,Off", "PowerState" ];
-$HomeConnect_DevicePrefix{"Dishwasher"}   = "Dishcare.Dishwasher";
-$HomeConnect_DevicePowerOff{"Dishwasher"} = "PowerOff";
-$HomeConnect_DeviceEvents{"Dishwasher"} = [ "SaltNearlyEmpty", "RinseAidNearlyEmpty" ];
-$HomeConnect_DeviceTrans_DE{"Dishwasher"} = {
-  "Eco50"              => "Eco50",
-  "Auto2"              => "Auto45-65",
-  "Quick45"            => "Speed45",
-  "Intensiv70"         => "Intensiv70",
-  "PreRinse"           => "Vorspülen",
-  "Kurz60"             => "Speed60",
-  "MachineCare"        => "Maschinenpflege",
-  "GlassShine"         => "BrilliantShine",
-  "Favorite.001"       => "Favorit",
-  "NightWash"          => "Leise",
-  "LearningDishwasher" => "LearningDishwasher",
-  "QuickD"             => "QuickD"
-};
-
-#-- Hob
-#   known settings AlarmClock,PowerState,(TemperatureUnit)
-#   known programs PowerLevelMode,FryingsensorMode,PowerMoveMode
-$HomeConnect_DeviceSettings{"Hob"} = [ "AlarmClock", "PowerState" ];
-$HomeConnect_DevicePrefix{"Hob"}   = "Cooking.Hob";
-$HomeConnect_DevicePowerOff{"Hob"} = undef;
-$HomeConnect_DeviceEvents{"Hob"}   = [];
-$HomeConnect_DeviceTrans_DE{"Hob"} = {
-  "PowerLevelMode"   => "Leistung",
-  "FryingSensorMode" => "Sensor",
-  "PowerMoveMode"    => "Bewegung"
-};
-
-#-- Hood
-#   known settings PowerState, Lighting, LightingBrightness
-#   known programs (Cooking.Common.Program.) Hood.Automatic, Hood.Venting, Hood.DelayedShutoff, CleaningModes.ApplianceOnRinsing
-#   known problems: program has additional useless prefix Hood
-$HomeConnect_DeviceSettings{"Hood"} = [ "PowerState", "Lighting", "LightingBrightness" ];
-$HomeConnect_DevicePrefix{"Hood"}   = "Cooking.Common";
-$HomeConnect_DevicePowerOff{"Hood"} = undef;
-$HomeConnect_DeviceEvents{"Hood"}   = ["GreaseFilterMaxSaturationNearlyReached", "GreaseFilterMaxSaturationReached" ];
-$HomeConnect_DeviceTrans_DE{"Hood"} = {
-  "Lighting"            => "Beleuchtung",
-  "LightingBrightness"  => "Helligkeit",
-  "Hood.Venting"        => "Lüften",
-  "Hood.Automatic"      => "Automatikbetrieb",
-  "Hood.DelayedShutOff" => "Lüfternachlauf",
-  "VentingLevel"        => "Lüfterstufe",
-  "IntensiveLevel"      => "Intensivstufe"
-};
-
-#-- Oven
-#   known settings
-#   known programs (Cooking.Oven.Program.HeatingMode.) HotAir,HotAirGentle,PizzaSetting,KeepWarm,Defrost,Pyrolysis,PROGRAMMED,SlowCook,GrillLargeArea,HotAirGrilling,TopBottomHeating
-#     in PROGRAMS 24 programs, like 01 = (Dish.Automatic.Conv.) FrozenThinCrustPizza, 02 = FrozenDeepPanPizza, 03 = FrozenLasagne, ...
-#   known problems: program has additional useless prefixes HeatingMode and Dish.Automatic.Conv (to distinguish from programs?)
-$HomeConnect_DeviceSettings{"Oven"} = [ "AlarmClock", "PowerState" ];
-$HomeConnect_DevicePrefix{"Oven"}   = "Cooking.Oven";
-$HomeConnect_DevicePowerOff{"Oven"} = "PowerStandby";
-$HomeConnect_DeviceEvents{"Oven"}   = ();
-$HomeConnect_DeviceTrans_DE{"Oven"} = {
-  "HeatingMode.TopBottomHeating" => "Ober/Unterhitze",
-  "HeatingMode.GrillLargeArea"   => "Flächengrill",
-  "HeatingMode.SlowCook"         => "LangsamGaren",
-  "HeatingMode.Defrost"          => "Auftauen",
-  "HeatingMode.KeepWarm"         => "Warmhalten",
-  "HeatingMode.PizzaSetting"     => "Pizza",
-  "HeatingMode.HotAir"           => "Heißluft",
-  "HeatingMode.HotAirGentle"     => "HeißluftSchonend",
-  "HeatingMode.HotAirGrilling"   => "Heißluftgrill",
-  "Cleaning.Pyrolysis"           => "Pyrolyse"
-};
-
-#-- Refrigerator
-#  known settings SetpointTemperatureRefrigerator,SuperModeRefrigerator,AssistantFridge,AssistantForceFridge
-#  no programs !
-$HomeConnect_DeviceSettings{"Refrigerator"} = [ "ChildLock:On,Off", "PowerState" ];
-$HomeConnect_DevicePrefix{"Refrigerator"}   = "Refrigeration.FridgeFreezer";
-$HomeConnect_DevicePowerOff{"Refrigerator"} = undef;
-$HomeConnect_DeviceEvents{"Refrigerator"}   = ["DoorAlarmRefrigerator"];
-$HomeConnect_DeviceTrans_DE{"Refrigerator"} = {
-  "SetpointTemperatureRefrigerator" => "Temperatur",
-  "SuperModeRefrigerator"           => "SuperMode",
-  "AssistantFridge"                 => "TürAssistent",
-  "AssistantForceFridge"            => "TürKraft"
-};
-
-#-- FridgeFreezer
-#  known settings
-#  no programs !
-$HomeConnect_DeviceSettings{"FridgeFreezer"} = [ "ChildLock:On,Off", "PowerState" ];
-$HomeConnect_DevicePrefix{"FridgeFreezer"}   = "Refrigeration.FridgeFreezer";
-$HomeConnect_DevicePowerOff{"FridgeFreezer"} = undef;
-$HomeConnect_DeviceEvents{"FridgeFreezer"} = [ "DoorAlarmFreezer", "DoorAlarmRefrigerator", "TemperatureAlarmFreezer" ];
-$HomeConnect_DeviceTrans_DE{"FridgeFreezer"} = {};
-
-#-- Washer
-#  known settings ChildLock, PowerState
-#  known programs Cotton.Eco4060,Cotton,EasyCare,Mix,DelicatesSilk,Wool,Super153045.Super1530,SportFitness,Sensitive,ShirtsBlouses,DarkWash,Towels
-#  known programs NEW: Mix.NightWash,Towels,DownDuvet.Duvet,DrumClean
-#  known problems: program contains "."
-#  special types (LaundryCare.Washer.EnumType.) SpinSpeed, Temperature
-$HomeConnect_DeviceSettings{"Washer"} = [ "ChildLock:On,Off", "PowerState" ];
-$HomeConnect_DevicePrefix{"Washer"}   = "LaundryCare.Washer";
-$HomeConnect_DevicePowerOff{"Washer"} = "MainsOff";
-$HomeConnect_DeviceEvents{"Washer"} = [ "IDos1FillLevelPoor", "IDos2FillLevelPoor" ];
-$HomeConnect_DeviceTrans_DE{"Washer"} = {
-  "Cotton"                => "Baumwolle",
-  "Cotton.Eco4060"        => "Baumwolle_Eco5060",
-  "Cotton.CottonEco"      => "Baumwolle_Eco",
-  "Super153045.Super1530" => "Super15/30",
-  "EasyCare"              => "Pflegeleicht",
-  "Mix"                   => "Schnell/Mix",
-  "DelicatesSilk"         => "Fein/Seide",
-  "Wool"                  => "Wolle",
-  "SportFitness"          => "Sportsachen",
-  "Outdoor"               => "Outdoor",
-  "Sensitive"             => "Empfindliche_Wäsche",
-  "ShirtsBlouses"          => "Hemden",
-  "DarkWash"              => "Dunkle_Wäsche",
-  "Mix.Nightwash"         => "Nachtwäsche",
-  "Towels"                => "Handtücher",
-  "DownDuvet.Duvet"       => "Bettdecke",
-  "DrumClean"             => "Trommelreinigung",
-  "PowerSpeed59"		  => "powerSpeed59",
-  "SpinDrain"			  => "Schleudern/Abpumpen",
-  "Spin"				  => "Schleudern"
-};
-
-#-- Dryer
-#   known settings
-#   known programs Cotton,Syntetic,Mix,Dessous,TimeCold,TimeWarm,Hygiene,Super40,Towels,Outdoor,Pillow,Blankets,BusinessShirts
-# special types: (LaundryCare.Dryer.EnumType.)DryingTarget.CupboardDry,WrinkleGuard.Min60
-$HomeConnect_DeviceSettings{"Dryer"} = [ "ChildLock:On,Off", "PowerState" ];
-$HomeConnect_DevicePrefix{"Dryer"}   = "LaundryCare.Dryer";
-$HomeConnect_DevicePowerOff{"Dryer"} = "PowerOff";
-$HomeConnect_DeviceEvents{"Dryer"}   = [];
-$HomeConnect_DeviceTrans_DE{"Dryer"} = {
-  "Cotton"         => "Baumwolle",
-  "Cotton.CottonEco" => "Baumwolle Eco",
-  "Synthetic"      => "Pflegeleicht",
-  "Mix"            => "Schnell/Mix",
-  "Dessous"        => "Unterwäsche",
-  "Delicates"	   => "ExtraFein",
-  "TimeCold"       => "Kalt",
-  "TimeWarm"       => "Warm",
-  "Hygiene"        => "Hygiene",
-  "Super40"        => "Super40",
-  "Towels"         => "Handtücher",
-  "Outdoor"        => "Outdoor",
-  "Pillow"         => "Kopfkissen",
-  "Blankets"       => "Laken",
-  "Bedlinens"	   => "Bettwäsche",
-  "Hygiene"        => "Hygiene",
-  "TimeWarm"	   => "Warm/Zeit",
-  "ShirtBlouses"   => "Hemden",
-
-};
-
-#-- WasherDryer
-#  known settings ChildLock, PowerState
-#  known programs Eco4060,Cotton,EasyCare,Mix,DelicatesSilk,Wool,FastWashDry45,SportFitness,Synthetics,Refresh,SpinDrain,Rinse
-#  known problems: program contains "."
-#  special types (LaundryCare.WasherDryer.EnumType.) SpinSpeed, Temperature
-$HomeConnect_DeviceSettings{"WasherDryer"} = [ "ChildLock:On,Off", "PowerState" ];
-$HomeConnect_DevicePrefix{"WasherDryer"}   = "LaundryCare.WasherDryer";
-$HomeConnect_DevicePowerOff{"WasherDryer"} = "PowerOff";
-$HomeConnect_DeviceEvents{"WasherDryer"}   = [];
-$HomeConnect_DeviceTrans_DE{"WasherDryer"} = {
-  "Mix.HHMix.HHMix"                           => "Schnell/Mix",
-  "EasyCare.HHSynthetics.HHSynthetics"        => "Pflegeleicht",
-  "DelicatesSilk.DelicatesSilk.DelicatesSilk" => "Fein/Seide",
-  "Sensitive.Sensitive.Sensitiv"              => "HygienePlus",
-  "RefreshWD.Refresh.Refresh"                 => "IronAssist",
-  "FastWashDry.WD45.WD45"                     => "ExtraKurz15/Wash&Dry45",
-  "SportFitness.SportFitness.SportFitness"    => "Sportswear",
-  "Wool.Wool.Wool"                            => "Wolle",
-  "Cotton.Cotton.Cotton"                      => "Baumwolle",
-  "LabelEU19.LabelEU19.Eco4060"               => "Eco40-60",
-  "Rinse.Rinse.Rinse"                         => "Spülen",
-  "Spin.Spin.SpinDrain"                       => "Schleudern/Abpumpen"
-};
-
-#CookProcessor
-$HomeConnect_DeviceSettings{"CookProcessor"} = [ "BrightnessDisplay", "SoundVolume", "PowerState" ];
-$HomeConnect_DevicePrefix{"CookProcessor"}   = "ConsumerProducts.CookProcessor";
-$HomeConnect_DevicePowerOff{"CookProcessor"} = "PowerOff";
-$HomeConnect_DeviceEvents{"CookProcessor"}   = ["StepFinished"];
-$HomeConnect_DeviceTrans_DE{"CookProcessor"} = {
-"BuildingBlock.AutomaticWarmingUpViscousDishes" => "AutomaticWarmingUpViscousDishes",
-"BuildingBlock.Beating" => "Beating",
-"BuildingBlock.Boiling" => "Boiling",
-"BuildingBlock.BraisingBigParts" => "BraisingBigParts",
-"BuildingBlock.Caramelizing" => "Caramelizing",
-"BuildingBlock.ColdPreCleaning" => "ColdPreCleaning",
-"BuildingBlock.CookingSugarSirup" => "CookingSugarSirup",
-"BuildingBlock.DoughProving" => "DoughProving",
-"BuildingBlock.FryingRoastingSearing" => "FryingRoastingSearing",
-"BuildingBlock.HeatingManualMode1" => "HeatingManualMode1",
-"BuildingBlock.HeatingManualMode3" => "HeatingManualMode3",
-"BuildingBlock.KeepWarmHighViscous" => "KeepWarmHighViscous",
-"BuildingBlock.KneadingHeavyDough" => "KneadingHeavyDough",
-"BuildingBlock.LeaveToCulture" => "LeaveToCulture",
-"BuildingBlock.ManualCookingParameter" => "ManualCookingParameter",
-"BuildingBlock.Melting" => "Melting",
-"BuildingBlock.MixingBatter" => "MixingBatter",
-"BuildingBlock.Pureeing" => "Pureeing",
-"BuildingBlock.ServingOrKeepWarmHighViscous" => "ServingOrKeepWarmHighViscous",
-"BuildingBlock.SimmeringFruitSpread" => "SimmeringFruitSpread",
-"BuildingBlock.SimmeringLiquidDishes" => "SimmeringLiquidDishes",
-"BuildingBlock.Soaking" => "Soaking",
-"BuildingBlock.SteamingHigh" => "SteamingHigh",
-"BuildingBlock.SteamingHighReduced" => "SteamingHighReduced",
-"BuildingBlock.SteamingLow" => "SteamingLow",
-"BuildingBlock.SteamingTowerCooking" => "SteamingTowerCooking",
-"BuildingBlock.Stewing" => "Stewing",
-"BuildingBlock.StewingSensibleDishes" => "StewingSensibleDishes",
-"BuildingBlock.Stirring" => "Stirring",
-"BuildingBlock.Sweating" => "Sweating",
-"BuildingBlock.WarmingMilk" => "WarmingMilk",
-"BuildingBlock.WarmingUpLiquidDishes" => "WarmingUpLiquidDishes",
-"BuildingBlock.WaterFastBoiling" => "WaterFastBoiling",
-"BuildingBlock.WeighingVolume" => "WeighingVolume",
-"Manual" => "Manual"
-};
-
-
-#LaundryCare.WasherDryer.Option.ProgramMode
-#LaundryCare.WasherDryer.EnumType.ProgramMode.WashingAndDrying
-#LaundryCare.Common.Option.ProcessPhase
-#LaundryCare.Common.EnumType.ProcessPhase.RinsingSoftener
-
-#-- CoffeeMaker
-#   known settings settings ChildLock,PowerState,CupWarmer
-#   known programs (ConsumerProducts.CoffeeMaker.Program.Beverage.) Coffee,... (ConsumerProducts.CoffeeMaker.Program.CoffeeWorld.)KleinerBrauner
-#   special types (ConsumerProducts.CoffeeMaker.EnumType.) BeanAmount, FlowRate, BeanContainerSelection
-$HomeConnect_DeviceSettings{"CoffeeMaker"} = [ "ChildLock:On,Off", "PowerState", "CupWarmer" ];
-$HomeConnect_DevicePrefix{"CoffeeMaker"}   = "ConsumerProducts.CoffeeMaker";
-$HomeConnect_DevicePowerOff{"CoffeeMaker"} = "PowerStandby";
-$HomeConnect_DeviceEvents{"CoffeeMaker"} = [ "BeanContainerEmpty", "WaterTankEmpty", "DripTrayFull" ];
-$HomeConnect_DeviceTrans_DE{"CoffeeMaker"} = {
-  "Beverage.Ristretto"             => "Ristretto",
-  "Beverage.EspressoDoppio "       => "Espresso_Doppio",
-  "Beverage.Espresso"              => "Espresso",
-  "Beverage.EspressoMacchiato"     => "Espresso_Macchiato",
-  "Beverage.Coffee"                => "Kaffee",
-  "Beverage.Cappuccino"            => "Cappuccino",
-  "Beverage.LatteMacchiato"        => "Latte_Macchiato",
-  "Beverage.CaffeLatte"            => "Milchkaffee",
-  "Beverage.MilkFroth"             => "Milchschaum",
-  "Beverage.WarmMilk"              => "Warme_Milch",
-  "CoffeeWorld.KleinerBrauner"     => "Kleiner_Brauner",
-  "CoffeeWorld.GrosserBrauner"     => "Großer_Brauner",
-  "CoffeeWorld.Verlaengerter"      => "Verlängerter",
-  "CoffeeWorld.VerlaengerterBraun" => "Verlängerter_Braun",
-  "CoffeeWorld.WienerMelange"      => "Wiener_Melange",
-  "CoffeeWorld.FlatWhite"          => "Flat_White",
-  "CoffeeWorld.Cortado"            => "Cortado",
-  "CoffeeWorld.CafeCortado"        => "Cafe_cortado",
-  "CoffeeWorld.CafeConLeche"       => "Cafe_con_leche",
-  "CoffeeWorld.CafeAuLait"         => "Cafe_au_lait",
-  "CoffeeWorld.Kaapi"              => "Kaapi",
-  "CoffeeWorld.KoffieVerkeerd"     => "Koffie_verkeerd",
-  "CoffeeWorld.Galao"              => "Galao",
-  "CoffeeWorld.Garoto"             => "Garoto",
-  "CoffeeWorld.Americano"          => "Americano",
-  "CoffeeWorld.RedEye"             => "Red_Eye",
-  "CoffeeWorld.BlackEye"           => "Black_Eye",
-  "CoffeeWorld.DeadEye"            => "Dead_Eye",
-  "Favorite.001"                   => "Favorit_1",
-  "Favorite.002"                   => "Favorit_2",
-  "Favorite.003"                   => "Favorit_3",
-  "Favorite.004"                   => "Favorit_4",
-  "Favorite.005"                   => "Favorit_5"
-};
-
-#Was ich noch komisch finde: In der App und an der Maschine kann ich noch die Programme "Heißwasser" und "Kaffeekanne" auswählen, in Fhem gibts die aber nicht
-
-#-- Cleaning Robot
-$HomeConnect_DeviceSettings{"CleaningRobot"} = ["PowerState"];
-$HomeConnect_DevicePrefix{"CleaningRobot"}   = "ConsumerProducts.CleaningRobot";
-$HomeConnect_DevicePowerOff{"CleaningRobot"} = "PowerOff";
-$HomeConnect_DeviceEvents{"CleaningRobot"} =  [ "EmptyDustBoxAndCleanFilter", "RobotIsStuck", "DockingStationNotFound" ];
-$HomeConnect_DeviceTrans_DE{"CleaningRobot"} = {};
+# Import configuration data
+my $HomeConnect_Translation = \%HomeConnectConf::HomeConnect_Translation;
+my $HomeConnect_Iconmap = \%HomeConnectConf::HomeConnect_Iconmap;
+my $HomeConnect_DeviceDefaults; # Set directly to the right type in HomeConnect_ResponeInit()
 
 ###############################################################################
 #
@@ -494,14 +110,17 @@ sub HomeConnect_Init($) {
   my ($hash) = @_;
   my $name = $hash->{NAME};
   Log3 $hash->{NAME}, 1, "[HomeConnect_Init] for $name called";
+
   $Data::Dumper::Indent = 0;
 
   $hash->{STATE}="Initializing, please wait";
   $hash->{helper}->{init}="start";
   #Set the most important settings from hidden readings and defaults to avoid fatal errors when API calls fail
   my $type=ReadingsVal($name,".type",undef);
+  my $prefix=ReadingsVal($name,".prefix",undef);
+
   $hash->{type}=$type if ($type and !defined($hash->{type}));
-  $hash->{prefix} = $HomeConnect_DevicePrefix{ $hash->{type} } if ($hash->{type});
+  $hash->{prefix} = $prefix if ($prefix and !defined($hash->{prefix}));
 
   HomeConnect_CloseEventChannel($hash);
   RemoveInternalTimer($hash);
@@ -515,6 +134,8 @@ sub HomeConnect_Init($) {
 	uri      => "/api/homeappliances"
   };
   HomeConnect_Request( $hash, $data );
+  my $scope = ReadingsVal($hash->{hcconn},"accessScope","unknown");
+  HomeConnect_FileLog($hash,"accessScope: ".$scope);
 }
 
 sub HomeConnect_InitWatcher($) {
@@ -580,7 +201,7 @@ sub HomeConnect_ResponseInit {
 
   my $appliances = eval { $JSON->decode($data) };
   if ($@) {
-	$msg = "[HomeConnect_ResponseInit] $name: JSON error requesting appliances: $@";
+	$msg = "[HomeConnect_ResponeInit] $name JSON error requesting appliances: Probably a connection timeout. Check connection to Home Connect Server and try again.";
 	Log3 $name, 1, $msg;
 	return $msg;
   }
@@ -605,14 +226,14 @@ sub HomeConnect_ResponseInit {
   my $type = $appliance->{type};
   $hash->{type}      = $type;
   readingsSingleUpdate($hash,".type",$type,0) if ($type); #Save type in hidden reading
-  ##Set Prefix as early as possible from defaults to avoid races with updates on startup
-  $hash->{prefix}    = $HomeConnect_DevicePrefix{ $hash->{type} };
   $hash->{brand}     = $appliance->{brand};
   $hash->{vib}       = $appliance->{vib};
   $hash->{connected} = $appliance->{connected};
   Log3 $name, 3, "[HomeConnect_ResponseInit] $name: defined as HomeConnect $hash->{type} $hash->{brand} $hash->{vib}";
 
-  my $icon = $HomeConnect_Iconmap{$appliance->{type}};
+  $HomeConnect_DeviceDefaults=\%{$HomeConnectConf::HomeConnect_DeviceDefaults{$type}};
+
+  my $icon = $HomeConnect_Iconmap->{$appliance->{type}};
   $attr{$name}{icon} = $icon if (!defined $attr{$name}{icon} && !defined $attr{$name}{devStateIcon} && defined $icon);
   $attr{$name}{stateFormat} = "state1 (state2)" if !defined $attr{$name}{stateFormat};
 
@@ -621,24 +242,25 @@ sub HomeConnect_ResponseInit {
   $hash->{helper}->{init}="init_done";
 
   #Some general static initialization, now we know the type
-  
   my $isDE = ( AttrVal( "global", "language", "EN" ) eq "DE" );
-  $hash->{prefix} = $HomeConnect_DevicePrefix{$type};
+  my $prefix=$HomeConnect_DeviceDefaults->{prefix};
+  $hash->{prefix} = $prefix;
+  readingsSingleUpdate($hash,".prefix",$prefix,0) if ($prefix); #Save type in hidden reading
 
-  if ( defined $HomeConnect_DeviceEvents{$type} ) {
-	$hash->{events} = join( ',', @{ $HomeConnect_DeviceEvents{$type} } );
+  if ( defined $HomeConnect_DeviceDefaults->{events} ) {
+	$hash->{events} = join( ',', @{ $HomeConnect_DeviceDefaults->{events} } );
   } else {
 	$hash->{events} = "";
   }
 
-  $hash->{data}->{poweroff} = $HomeConnect_DevicePowerOff{$type}
-	if ( defined $HomeConnect_DevicePowerOff{$type} );
+  $hash->{data}->{poweroff} = $HomeConnect_DeviceDefaults->{poweroff}
+	if ( defined $HomeConnect_DeviceDefaults->{poweroff} );
 
-  $hash->{data}->{trans} = $HomeConnect_DeviceTrans_DE{$type}
-	if ( defined $HomeConnect_DeviceTrans_DE{$type} && $isDE );
+  $hash->{data}->{trans} = $HomeConnect_DeviceDefaults->{programs_DE}
+	if ( defined $HomeConnect_DeviceDefaults->{programs_DE} && $isDE );
 	
-  foreach my $key (keys %{$HomeConnect_DeviceTrans_DE{$type}}) {
-	$hash->{data}->{retrans}->{$HomeConnect_DeviceTrans_DE{$type}->{$key}}=$key;
+  foreach my $key (keys %{$HomeConnect_DeviceDefaults->{programs_DE}}) {
+	$hash->{data}->{retrans}->{$HomeConnect_DeviceDefaults->{programs_DE}->{$key}}=$key;
   }
 }
 
@@ -1634,7 +1256,7 @@ sub HomeConnect_ResponseGetSettings {
 	Log3 $name, 3, "[HomeConnect_ResponseGetSettings] $name: error getting settings, replacing by default settings for type $type";
 	my @list;
 	delete $hash->{data}->{settings};
-	foreach my $opt (@{$HomeConnect_DeviceSettings{$type}}) {
+	foreach my $opt (@{$HomeConnect_DeviceDefaults->{settings}}) {
 		$opt =~ s/:(.*)//;
 		my $values=$1;
 		HomeConnect_SetOption($hash,"settings",$opt,"name","BSH.Common.Setting.".$opt);
@@ -1674,7 +1296,7 @@ sub HomeConnect_GetPrograms {
 		$hash->{programs}=$programs;
 	 } else {
 		 #Get from hardcoded defaults
-		my @prgs=(keys %{$HomeConnect_DeviceTrans_DE{$hash->{type}}});
+		my @prgs=(keys %{$HomeConnect_DeviceDefaults->{programs_DE}});
 		$hash->{programs}=join(",",@prgs);
 	}
   }
@@ -1790,7 +1412,8 @@ sub HomeConnect_GetProgramOptions {
   $query="active/options" if ($query eq "" and $operationState =~ /Run|Finished|Pause/); #Use "active" even if ActiveProgram is not present when running
 
   if ( $query eq "") {
-	readingsSingleUpdate( $hash, "lastErr", "No programs selected or active", 1 );
+	$msg="No programs selected or active";
+	readingsSingleUpdate( $hash, "lastErr", $msg, 1 );
 	Log3 $name, 1, $msg;
 	return $msg;
   }
@@ -1861,7 +1484,7 @@ sub HomeConnect_ParseKeys($$$) {
   my $JSON  = JSON->new->utf8(0)->allow_nonref;
   my $jhash = eval { $JSON->decode($json) };
   if ($@) {
-	my $msg = "[HomeConnect_ParseKeys] $name: JSON error requesting $area: $@";
+	my $msg = "[HomeConnect_ParseKeys] $name JSON error requesting $area: Probably a connection timeout. Check connection to Home Connect Server and try again.";
 	Log3 $name, 1, $msg;
 	return $msg;
   }
@@ -1914,7 +1537,7 @@ sub HomeConnect_ParseKeys($$$) {
 		#SpecialCase for enumerator On/Off when now enumarations are set in "check" mode
 		$allowedvals="On,Off";
 	}
-	HomeConnect_FileLog($hash,"Checking key $key $orgarea $option $svalue\n");
+	HomeConnect_FileLog($hash,"Checking key $key $orgarea $option ".(defined($svalue)?$svalue:"<noval>"));
 	my $unit=$line->{unit};
 	$unit = undef if (defined($unit) and $line->{unit} =~ /(E|e)num/); #Stupid coffeemaker has "enum" as unit
 	if ($orgarea ne "check" or defined($hash->{data}->{$area}->{$option})) { #Checkprogram shall only update existing values
@@ -2015,8 +1638,8 @@ sub HomeConnect_CheckState($) {
   if ( $program ne "" && defined( $hash->{data}->{trans}->{$program} ) ) {
 	$program = $hash->{data}->{trans}->{$program};
   }
-  if ($lang eq "DE" && defined $HomeConnect_DeviceTrans_DE{$hash->{type}}->{$program}) {
-	$program = $HomeConnect_DeviceTrans_DE{$hash->{type}}->{$program};
+  if ($lang eq "DE" && defined $HomeConnect_DeviceDefaults->{programs_DE}->{$program}) {
+	$program = $HomeConnect_DeviceDefaults->{programs_DE}->{$program};
   }
   my $pct =	HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.ProgramProgress", "0" );
   $pct =~ s/ \%.*//;
@@ -2034,7 +1657,7 @@ sub HomeConnect_CheckState($) {
   my $state1 = "";
   my $state2 = "";
   my $state  = "off";
-  my $trans  = $HC_table{$lang}->{ lc $operationState };
+  my $trans  = $HomeConnect_Translation->{$lang}->{ lc $operationState };
   $trans=$operationState if (!defined $trans or $trans eq "");
   
   if ( $type =~ /Oven/ ) {
@@ -2081,7 +1704,7 @@ sub HomeConnect_CheckState($) {
   }
   if ( $operationState =~ /(Abort)|(Finished)/ ) {
 	$state  = "done";
-	$state1 = $HC_table{$lang}->{$state};
+	$state1 = $HomeConnect_Translation->{$lang}->{$state};
 	$state2 = "-";
 	$state = "idle" if $type =~ /Coffe/; # Coffeemakers don't have a door that can be opened -> go to ready right away
   }
@@ -2090,16 +1713,16 @@ sub HomeConnect_CheckState($) {
 	if ($currentstate eq "done" and $door =~ /Closed/) {
 		#Delay switching to "idle" until door gets opened so user continues to get indication that appliance needs to be emptied, even when it goes to "off" automatically
 		$state  = "done";
-		$state1 = $HC_table{$lang}->{$state};
+		$state1 = $HomeConnect_Translation->{$lang}->{$state};
 		$state2 = "-";
 	} else {
 	  if ($remoteStartAllowed) {
 		$state = "auto";
-		$state1 = $HC_table{$lang}->{"autostart"};
+		$state1 = $HomeConnect_Translation->{$lang}->{"autostart"};
 		$state2 = "-";
 	  } else {
 		$state  = "idle";
-		$state1 = $HC_table{$lang}->{$state};
+		$state1 = $HomeConnect_Translation->{$lang}->{$state};
 		$state2 = "-";
 	  }
 	}
@@ -2108,7 +1731,7 @@ sub HomeConnect_CheckState($) {
 #Opened door overrides any state from done -> idle to indicate the appliance got emptied
   if ( $door =~ /Open/ ) {
 	$state  = "idle" if $state eq "done";
-	$state1 = $HC_table{$lang}->{"door"} . " " . $HC_table{$lang}->{ lc $door };
+	$state1 = $HomeConnect_Translation->{$lang}->{"door"} . " " . $HomeConnect_Translation->{$lang}->{ lc $door };
 	$state2 = "-";
 	$operationState = "Ready" if $operationState =~/Finished/; # There might be no event setting Finished -> Ready when Finished was by set by FHEM
   }
@@ -2704,7 +2327,7 @@ sub HomeConnect_ReadingsUpdate($$$$$) {
 	my $lvalue=lc $nvalue;
 	my $tvalue=$nvalue;
     $tvalue =~ /\s.*/; #When translating also remove " %", " seconds", " °C" etc. to create a plain value
-	$tvalue=$HC_table{DE}{$lvalue} if (defined $HC_table{DE}{$lvalue});
+	$tvalue=$HomeConnect_Translation->{DE}{$lvalue} if (defined $HomeConnect_Translation->{DE}{$lvalue});
 	#In case user wants the program name, try that as well:
 	$tvalue=$hash->{data}->{trans}->{$nvalue} if (defined( $hash->{data}->{trans}->{$nvalue}));
 	$tvalue = decode_utf8($tvalue) if $unicodeEncoding;

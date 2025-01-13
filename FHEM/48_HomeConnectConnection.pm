@@ -43,6 +43,7 @@ sub HomeConnectConnection_Initialize($)
   $hash->{FW_summaryFn} = "HomeConnectConnection_FwFn";
   $hash->{FW_detailFn}  = "HomeConnectConnection_FwFn";
   $hash->{AttrList}     = "disable:0,1 " .
+						  "timeout " .
                           "accessScope " .
                           $readingFnAttributes;
 }
@@ -349,6 +350,11 @@ sub HomeConnectConnection_requestAfterToken
   }
 
   Log3 $name, 4, "$name: requestAfterToken $uri";
+  
+  my $timeout=AttrVal($name,"timeout",5);
+  $timeout=~/(\d)/;
+  $timeout=$1;
+  $timeout=5 if $timeout<5;
 
   my $param;
   if (defined($data->{data})) {
@@ -359,7 +365,7 @@ sub HomeConnectConnection_requestAfterToken
           hash       => $hash,
           nextcall   => $data->{nextcall},
           callback   => \&HomeConnectConnection_CallbackRequest,
-          timeout    => 5,
+          timeout    => $timeout,
           noshutdown => 1,
           method     => "DELETE",
           header     => { "Accept" => "application/vnd.bsh.sdk.v1+json", "Authorization" => "Bearer $token" }
@@ -370,7 +376,7 @@ sub HomeConnectConnection_requestAfterToken
         hash       => $hash,
         nextcall   => $data->{nextcall},
         callback   => \&HomeConnectConnection_CallbackRequest,
-        timeout    => 5,
+        timeout    => $timeout,
         noshutdown => 1,
         method     => "PUT",
         header     => { "Accept" => "application/vnd.bsh.sdk.v1+json",
@@ -386,7 +392,7 @@ sub HomeConnectConnection_requestAfterToken
       hash       => $hash,
       nextcall   => $data->{nextcall},
       callback   => \&HomeConnectConnection_CallbackRequest,
-      timeout    => 5,
+      timeout    => $timeout,
       noshutdown => 1,    
       header     => { "Accept" => "application/vnd.bsh.sdk.v1+json", "Authorization" => "Bearer $token" }
     };
@@ -680,6 +686,9 @@ sub HomeConnectConnection_ResponseAutocreateDevices
   <a id="HomeConnect-attr"></a>
   <h4>Attributes</h4>
   <ul>
+	<li>timeout &lt;integer&gt;<br/>
+		<a id="HomeConnectConnection-attr-timeout"></a>
+        Timeout for HTTP request. Default 5s </li>
 	<li>accessScope &lt;scope list&gt;<br/>
 		<a id="HomeConnectConnection-attr-accessScope"></a>
 	  Change this attribute to limit the access rights given to FHEM. The default is to submit all currently available<br>
