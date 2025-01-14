@@ -1282,6 +1282,14 @@ sub HomeConnect_GetPrograms {
   my ($hash) = @_;
   my $name = $hash->{NAME};
   my $msg;
+
+  #Redefine variable, probably needed in case of "reload" of module
+  $HomeConnect_DeviceDefaults=\%{$HomeConnectConf::HomeConnect_DeviceDefaults{$hash->{type}}};
+
+  my @dp=(keys %{$HomeConnect_DeviceDefaults->{programs_DE}});
+  HomeConnect_FileLog($hash,"Defaults:".join(",",@dp));
+  my $int=ReadingsVal($name,".programs","");
+  HomeConnect_FileLog($hash,".programs:".$int);
   
   #No programs with any fridges
   if ($hash->{type} =~ /(Fridge)|(Freezer)|(Refrigerator)|(Wine)/) { 
@@ -2386,7 +2394,7 @@ sub HomeConnect_FileLog($$) {
 	my $logdev=$defs{$hash->{NAME}."_log"};
 	return if (!defined $logdev);
 	$msg =~ s/homeappliances\/[\w|-]+\//homeappliances\/XXXX\//mg;
-	$msg =~ s/'haId' => '\/[\w|-]+\/'/'haId' => 'XXXX'/mg;
+	$msg =~ s/'haId' => '[\w|-]+'/'haId' => 'XXXX'/mg;
 	my $fh = $logdev->{FH};
 	if (!$fh) {
 		#Log into normal log if something is wrong with filehandle
