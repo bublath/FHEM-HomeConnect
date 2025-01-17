@@ -542,6 +542,7 @@ sub HomeConnectConnection_CallbackGetAuthToken
     $hash->{STATE} = "Connected";
     readingsBeginUpdate($hash);
     readingsBulkUpdate($hash, "state", $hash->{STATE});
+    readingsBulkUpdate($hash, "accessScope", $json->{scope});
 
     ($hash->{expires_at}) = gettimeofday();
     $hash->{expires_at} += $json->{expires_in};

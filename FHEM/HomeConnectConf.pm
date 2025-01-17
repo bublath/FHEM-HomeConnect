@@ -122,6 +122,7 @@ $HomeConnect_DeviceDefaults{"Dishwasher"} = {
 	"settings" => [ "ChildLock:On,Off", "PowerState" ],
 	"prefix" => "Dishcare.Dishwasher",
 	"poweroff" => "PowerOff",
+	"activeoptions" => ["SilenceOnDemand"],
 	"events" => [ "SaltNearlyEmpty", "RinseAidNearlyEmpty" ],
 	"programs_DE" => {
 		"Eco50"              => "Eco50",
