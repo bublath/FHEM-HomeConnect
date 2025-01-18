@@ -1188,8 +1188,8 @@ sub HomeConnect_Timer {
 	my $prg = HomeConnect_ReadingsVal( $hash, "BSH.Common.Setting.SelectedProgram", "" ).HomeConnect_ReadingsVal( $hash, "BSH.Common.Setting.ActiveProgram", "" );
 
 	#After GetPrograms we should know if a program is active or selected
-	if ( $prg ne "") {
-	  HomeConnect_GetProgramOptions($hash) if ($hash->{helper}->{programs} == 1 and $hash->{helper}->{options} == -1 );
+	if ( $prg ne "" and $hash->{helper}->{programs} == 1) {
+	  HomeConnect_GetProgramOptions($hash) if ($hash->{helper}->{options} == -1 );
 	  HomeConnect_CheckProgram($hash) if ($hash->{helper}->{options} == 1 and $hash->{helper}->{details} == -1 );
 	}
   }
@@ -1335,14 +1335,12 @@ sub HomeConnect_GetPrograms {
   }
 
   #If no programs are set, try to get it from hidden reading
-  if (!$hash->{programs}) {
-	 my $programs=ReadingsVal($name,".programs",undef); 
-	 if ($programs) {
-		$hash->{programs}=$programs;
+  if (!$hash->{programs} or $hash->{programs} eq "") {
+	 if ($int) { #Take internal reading
+		$hash->{programs}=$int;
 	 } else {
 		 #Get from hardcoded defaults
-		my @prgs=(keys %{$HomeConnect_DeviceDefaults->{programs_DE}});
-		$hash->{programs}=join(",",@prgs);
+		$hash->{programs}=join(",",@dp);
 	}
   }
 
@@ -1402,19 +1400,17 @@ sub HomeConnect_ResponseGetPrograms {
   my @prgs;
   foreach my $line (@$arr) {
 	my $key = $line->{key};
-	$key =~ s/.*\..*\.Program\.//;
- #Work around a problem with certain dryers that repeat the program name 3 times
-	my @kk = split( /\./, $key );
-	$key = $kk[0] if ( @kk == 3 and $kk[0] eq $kk[1] );
+	$key = HomeConnect_FixProgram($key);
 	push (@prgs,$key);
   }
+  my $found=@prgs; #Count before selected/active get added
   
   my @optarray;
   #Reply also contains information about the currently selected and active program
   my $skey=$jhash->{data}->{selected}->{key};
   if ($skey) {
+	$skey = HomeConnect_FixProgram($skey);
 	HomeConnect_readingsSingleUpdate($hash,"BSH.Common.Setting.SelectedProgram",$skey,1);
-	$skey =~ s/.*\..*\.Program\.//;
 	if (!grep { $_ eq $skey } @prgs) { #Avoid duplicates
 		push (@prgs,$skey);
 	}
@@ -1428,8 +1424,8 @@ sub HomeConnect_ResponseGetPrograms {
 
   my $akey=$jhash->{data}->{active}->{key};
   if ($akey) {
+	$akey = HomeConnect_FixProgram($akey);
 	HomeConnect_readingsSingleUpdate($hash,"BSH.Common.Setting.ActiveProgram",$akey,1);
-	$akey =~ s/.*\..*\.Program\.//;
 	if (!grep { $_ eq $akey } @prgs) {
 		push (@prgs,$akey);
 	}
@@ -1440,7 +1436,7 @@ sub HomeConnect_ResponseGetPrograms {
 	HomeConnect_readingsSingleUpdate($hash,"BSH.Common.Setting.ActiveProgram","",1);
 	HomeConnect_FileLog($hash,"No Program active");
   }
-  if (@prgs>0) { #Only change programs if a list was returned
+  if ($found>0) { #Only change programs if a list was returned
 	push (@prgs,$extraPrograms) if $extraPrograms;
 	my $programs=join(",",@prgs);
 	$hash->{programs} = $programs;
@@ -1453,6 +1449,15 @@ sub HomeConnect_ResponseGetPrograms {
 	return $msg;
   }
   $hash->{helper}->{programs} = 1;
+}
+
+sub HomeConnect_FixProgram($) {
+	my ($key) = @_;
+	$key =~ s/.*\..*\.Program\.//;
+	#Work around a problem with certain dryers that repeat the program name 3 times
+	my @kk = split( /\./, $key );
+	$key = $kk[0] if ( @kk == 3 and $kk[0] eq $kk[1] );
+	return $key;
 }
 
 ###############################################################################
@@ -2262,6 +2267,11 @@ sub HomeConnect_ReadEventChannel($) {
 		  #If Active Program is set when a new program is selected and operationState is not running, this probably is a error
 		  if ($operationState =~ /Ready|Inactive/ and HomeConnect_ReadingsVal( $hash, "BSH.Common.Setting.ActiveProgram", "" ) ne "") {
 			HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Setting.ActiveProgram", undef );
+		  }
+		  $value = HomeConnect_FixProgram($value);
+		  if (!($hash->{programs} =~ /$key/)) {
+			HomeConnect_FileLog($hash,"Unknown selected program $key - trigger GetPrograms");			
+			$hash->{helper}->{programs} = -1;
 		  }
 		}
 		elsif ( $key =~ /StartInRelative/ ) {
