@@ -270,6 +270,7 @@ $HomeConnect_DeviceDefaults{"Dryer"} = {
 	"prefix" => "LaundryCare.Dryer",
 	"poweroff" => "PowerOff",
 	"events" => [],
+	"finished" => "DryingProcessFinished",
 	"programs_DE" => {
 	  "Cotton"         => "Baumwolle",
 	  "Cotton.CottonEco" => "Baumwolle Eco",

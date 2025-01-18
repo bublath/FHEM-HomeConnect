@@ -273,7 +273,9 @@ sub HomeConnect_ResponseInit {
   } else {
 	$hash->{events} = "";
   }
-
+  
+  $hash->{data}->{finished} = $HomeConnect_DeviceDefaults->{finished};
+  
   $hash->{data}->{poweroff} = $HomeConnect_DeviceDefaults->{poweroff}
 	if ( defined $HomeConnect_DeviceDefaults->{poweroff} );
 
@@ -1194,7 +1196,7 @@ sub HomeConnect_Timer {
   if ( defined $hash->{conn} and AttrVal( $name, "disable", 0 ) == 0 ) {
 	HomeConnect_ReadEventChannel($hash);
   }
-  
+
   #Check all the Status Flags and execute the required queries
   if ($hash->{helper}->{init} == 1 and !$hash->{helper}->{offline}) { #Sanity check - only if init was successful and not offline
 	HomeConnect_GetSettings($hash) if ($hash->{helper}->{settings} == -1);
@@ -1427,7 +1429,7 @@ sub HomeConnect_ResponseGetPrograms {
   my $skey=$jhash->{data}->{selected}->{key};
   if ($skey) {
 	$skey = HomeConnect_FixProgram($skey);
-	HomeConnect_readingsSingleUpdate($hash,"BSH.Common.Setting.SelectedProgram",$skey,1);
+	HomeConnect_readingsSingleUpdate($hash,"BSH.Common.Setting.SelectedProgram",$hash->{prefix}.".Programs.".$skey,1);
 	if (!grep { $_ eq $skey } @prgs) { #Avoid duplicates
 		push (@prgs,$skey);
 	}
@@ -1442,7 +1444,7 @@ sub HomeConnect_ResponseGetPrograms {
   my $akey=$jhash->{data}->{active}->{key};
   if ($akey) {
 	$akey = HomeConnect_FixProgram($akey);
-	HomeConnect_readingsSingleUpdate($hash,"BSH.Common.Setting.ActiveProgram",$akey,1);
+	HomeConnect_readingsSingleUpdate($hash,"BSH.Common.Setting.ActiveProgram",$hash->{prefix}.".Programs.".$akey,1);
 	if (!grep { $_ eq $akey } @prgs) {
 		push (@prgs,$akey);
 	}
@@ -1675,8 +1677,15 @@ sub HomeConnect_ProcessOptions($$$$) {
 	
 	#Also put this into readings
 	if ($svalue) {
-		$svalue.=" ".$unit if $unit;
-		HomeConnect_readingsBulkUpdate( $hash, $key, $svalue );
+		HomeConnect_readingsBulkUpdate( $hash, $key, $svalue.($unit?" ".$unit:"") );
+		#Some special key updates
+		if ($option =~ /RemainingProgramTime$/) {
+			$hash->{helper}->{rtime}=int(gettimeofday()); #Remember Timestamp of last update
+			$hash->{helper}->{remaining}=$svalue;
+		} elsif ($option =~ /ElapsedProgramTime$/) {
+			$hash->{helper}->{etime}=int(gettimeofday()); #Remember Timestamp of last update
+			$hash->{helper}->{elapsed}=$svalue;
+		}
 	}
   }
   readingsEndUpdate( $hash, 1 );
@@ -1729,13 +1738,6 @@ sub HomeConnect_CheckState($) {
   my $remoteStartAllowed=HomeConnect_ReadingsVal($hash,"BSH.Common.Status.RemoteControlStartAllowed","Off");
   $remoteStartAllowed=($remoteStartAllowed eq "On"?1:0);
   
-  #Remove this: It leads to setting activeProgram even though it just got set to undef
-  #-- active program missing
-#  if ( $aprogram eq "" && $operationState eq "Run" ) {
-#	$aprogram = $sprogram;
-#	HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Setting.ActiveProgram", $aprogram, 1 );
- # }
-
   #-- selected program missing
   if ( $sprogram eq "" && $operationState eq "Run" && $aprogram ne "" ) {
 	$sprogram = $aprogram;
@@ -1774,6 +1776,24 @@ sub HomeConnect_CheckState($) {
   my $state  = "off";
   my $trans  = $HomeConnect_Translation->{$lang}->{ lc $operationState };
   $trans=$operationState if (!defined $trans or $trans eq "");
+  
+  if (ReadingsAge($name,"BSH.Common.Option.ElapsedProgramTime",-1)>120) {
+	if ($hash->{helper}->{etime}) {
+		my $delta=gettimeofday()-$hash->{helper}->{etime};
+		HomeConnect_FileLog($hash,"Elapsed:".$hash->{helper}->{elapsed}+$delta);
+	}
+  }
+
+  # Workaround for missing RemainingProgramTime - calculate myself if no update since 2 minutes
+  if ($hash->{helper}->{rtime}) {
+	if (ReadingsAge($name,"BSH.Common.Option.RemainingProgramTime",-1)>120) {
+		my $delta=int(gettimeofday())-$hash->{helper}->{rtime};
+		my $value=$hash->{helper}->{remaining}-$delta;
+		my $rstr=HomeConnect_UpdateRemainingTime($hash,$value);
+		HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.RemainingProgramTimeHHMM", $rstr );
+	}
+  }
+
   
   if ( $type =~ /Oven/ ) {
 	my $tim1 = HomeConnect_ReadingsVal( $hash,	"BSH.Common.Option.RemainingProgramTime", "0 seconds" );
@@ -1818,6 +1838,8 @@ sub HomeConnect_CheckState($) {
 	readingsBulkUpdate($hash,"lastErr","Error or action required",1);
   }
   if ( $operationState =~ /(Abort)|(Finished)/ ) {
+	delete $hash->{helper}->{rtime}; #Clear timestamps for calculating remaining/elapsed time
+	delete $hash->{helper}->{etime};
 	$state  = "done";
 	$state1 = $HomeConnect_Translation->{$lang}->{$state};
 	$state2 = "-";
@@ -2242,7 +2264,7 @@ sub HomeConnect_ReadEventChannel($) {
 		
 		Log3 $name, 4, "[HomeConnect_ReadEventChannel] $name: $key = $value";
 		#-- special keys
-		if ( $key =~ /.*Finished$/ ) {
+		if ( defined($hash->{data}->{finished}) and $key =~ /$hash->{data}->{finished}/) {
 		  if ( $value =~ /Present/ and $operationState =~ /Run/ ) {
 		    #Dryer will not go into Finished state if WrinkleGuard is active - then we get "DryingProcessFinished" and "ProgramFinished" is sent only after end of WrinkleGuard 
 		    HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Status.OperationState", "BSH.Common.EnumType.OperationState.Finished" );
@@ -2250,6 +2272,9 @@ sub HomeConnect_ReadEventChannel($) {
 		  else {
 		    #Probably nothing special to do if value goes from Finished to Off
 		  }
+		  $checkstate = 1;
+		#Temperature changes typically should update the state variables
+		} elsif ( $key =~ /Temperature/ ) {
 		  $checkstate = 1;
 		#Known Alerts - keep filters very generic, but it should be accurate enough to only react on real alarms (use DoorAlarm and TemperatureAlarm to distinguish from AlarmClock)
 		} elsif ( $key =~ /(Empty)|(Full)|(Cool)|(Descal)|(Clean)|(DoorAlarm)|(TemperatureAlarm)|(Stuck)|(Found)|(Poor)|(Reached)/ ) {
@@ -2314,16 +2339,8 @@ sub HomeConnect_ReadEventChannel($) {
 		}
 		#Combine updates for FinishInRelative and RemainingProgramTime as both will change the Finish Time
 		elsif ( $key =~ /(FinishInRelative)|(RemainingProgramTime)/ ) {
-		  $value =~ s/\D+//g; # remove seconds
-		  my $h    = int( $value / 3600 );
-		  my $m    = ceil( ( $value - 3600 * $h ) / 60 );
-		  my $frel = sprintf( "%d:%02d", $h, $m );
-		  my ( $endmin, $endhour ) = ( localtime( time + $value ) )[ 1, 2 ];
-		  my $ftim = sprintf( "%d:%02d", $endhour, $endmin );
-
+		  my $frel=HomeConnect_UpdateRemainingTime($hash,$value);
 		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.RemainingProgramTimeHHMM", $frel ) if $key =~ /RemainingProgramTime/;
-		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.FinishInRelativeHHMM", $frel );
-		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.FinishAtHHMM", $ftim );
 		  $checkstate = 1;
 		}
 		elsif ( $key =~ /AlarmClockElapsed/ ) {
@@ -2386,6 +2403,20 @@ sub HomeConnect_ReadEventChannel($) {
 
   HomeConnect_CheckState($hash) if $checkstate;
   Log3 $name, 5, "[HomeConnect_ReadEventChannel] $name: event channel received no more data";
+}
+
+sub HomeConnect_UpdateRemainingTime($$) {
+	my ($hash,$value) = @_;
+	$value =~ s/\D+//g; # remove seconds
+	my $h    = int( $value / 3600 );
+	my $m    = ceil( ( $value - 3600 * $h ) / 60 );
+	my $frel = sprintf( "%d:%02d", $h, $m );
+	my ( $endmin, $endhour ) = ( localtime( time + $value ) )[ 1, 2 ];
+	my $ftim = sprintf( "%d:%02d", $endhour, $endmin );
+
+	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.FinishInRelativeHHMM", $frel );
+	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.FinishAtHHMM", $ftim );
+	return $frel;
 }
 
 sub HomeConnect_ConvertSeconds($) {
