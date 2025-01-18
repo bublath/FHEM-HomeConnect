@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "1.15";
+my $HCversion = "1.16";
 #
 # $Id: xx $
 #
@@ -1266,6 +1266,7 @@ sub HomeConnect_GetSettings {
   };
   HomeConnect_Request( $hash, $data );
   $hash->{helper}->{settings} = 0;
+  return;
 }
 
 ###############################################################################
@@ -1354,14 +1355,14 @@ sub HomeConnect_GetPrograms {
   } 
 
   #-- Request available programs
+  delete $hash->{data}->{sets}; #Reset the value list, as GetPrograms creates the "master" list
   my $data = {
 	callback => \&HomeConnect_ResponseGetPrograms,
 	uri      => "/api/homeappliances/$hash->{haId}/programs"
   };
   HomeConnect_Request( $hash, $data );
-  delete $hash->{data}->{sets}; #Reset the value list, as GetPrograms creates the "master" list
   Log3 $name, 5, "[HomeConnect_GetPrograms] $name: getting programs with uri " . $data->{uri};
-
+  return;
 }
 
 ###############################################################################
@@ -1510,6 +1511,7 @@ sub HomeConnect_GetProgramOptions {
   HomeConnect_Request( $hash, $data );
   $hash->{helper}->{options} = 0;
   Log3 $name, 5, "[HomeConnect_GetProgramOptions] $name: getting options with uri " . $data->{uri};
+  return;
 }
 
 ###############################################################################
@@ -1642,9 +1644,11 @@ sub HomeConnect_ProcessOptions($$$$) {
 		HomeConnect_SetOption($hash,$area,$option,"value",$svalue); #for settings
 		HomeConnect_SetOption($hash,$area,$option,"type",$stype); #for settings
 		HomeConnect_SetOption($hash,$area,$option,"unit",$unit); #for settings
-		#Mark Options as "set" option
-		$hash->{data}->{sets}->{$option}=1 if ($key !~ /Common/ and defined($svalue));
-		$hash->{data}->{sets}->{$option}=1 if ($key =~ /Duration/ and defined ($svalue));	#Include some special Common keys		
+		#Mark Options as "set" option only when it is mentioned in "ProgramOptions"
+		if ($orgarea ne "check") {
+			$hash->{data}->{sets}->{$option}=1 if ($key !~ /Common/);
+			$hash->{data}->{sets}->{$option}=1 if ($key =~ /Duration/);	#Include some special Common keys
+		}
 	} 
 	
 	#Also put this into readings
@@ -1921,6 +1925,7 @@ sub HomeConnect_UpdateStatus {
   };
   HomeConnect_Request( $hash, $data );
   $hash->{helper}->{status} = 0;
+  return;
 }
 
 ##############################################################################
@@ -1967,6 +1972,7 @@ sub HomeConnect_CheckProgram {
   };
   HomeConnect_Request( $hash, $data );
   $hash->{helper}->{details} = 0;
+  return;
 }
 
 ##############################################################################
