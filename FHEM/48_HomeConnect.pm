@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "1.17";
+my $HCversion = "1.18";
 #
 # $Id: xx $
 #
@@ -2340,7 +2340,11 @@ sub HomeConnect_ReadEventChannel($) {
 		#Combine updates for FinishInRelative and RemainingProgramTime as both will change the Finish Time
 		elsif ( $key =~ /(FinishInRelative)|(RemainingProgramTime)/ ) {
 		  my $frel=HomeConnect_UpdateRemainingTime($hash,$value);
-		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.RemainingProgramTimeHHMM", $frel ) if $key =~ /RemainingProgramTime/;
+		  if ($key =~ /RemainingProgramTime/) {
+			HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.RemainingProgramTimeHHMM", $frel );
+			delete $hash->{helper}->{rtime}; #Clear timestamps for calculating remaining/elapsed time
+			delete $hash->{helper}->{etime};
+		  }
 		  $checkstate = 1;
 		}
 		elsif ( $key =~ /AlarmClockElapsed/ ) {
