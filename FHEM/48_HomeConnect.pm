@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "1.16";
+my $HCversion = "1.17";
 #
 # $Id: xx $
 #
@@ -608,7 +608,10 @@ sub HomeConnect_Set($@) {
 
 	#-- start current program -------------------------------------------------
   }
-  elsif ( $command =~ "(s|S)tart(p|P)rogram" ) {
+  elsif ( $command =~ /StartX/) {
+	return HomeConnect_StartProgram2($hash,$a[0]);
+  }
+  elsif ( $command =~ /(s|S)tart(p|P)rogram/ ) {
 
 	#return "[HomeConnect_Set] $name: cannot start, device powered off"
 	#  if (!$powerOn);
@@ -626,7 +629,7 @@ sub HomeConnect_Set($@) {
 	return HomeConnect_SendCommand($hash,$command);
    #--stop current program------------------------------------------------------
   }
-  elsif ( $command =~ "(s|S)top(p|P)rogram" ) {
+  elsif ( $command =~ /(s|S)top(p|P)rogram/ ) {
 	return "[HomeConnect_Set] $name: cannot stop, no program is running"
 	  if ( !$pgmRunning and $operationState !~ /(DelayedStart)/);
 	my $data = {
@@ -1145,6 +1148,20 @@ sub HomeConnect_StartProgram($) {
   };
 
   Log3 $name, 3, "[HomeConnect] $name: start program $program with uri " . $data->{uri} . " and data " . $data->{data};
+  HomeConnect_Request( $hash, $data );
+}
+
+sub HomeConnect_StartProgram2($$) {
+  my ($hash,$program) = @_;
+
+  my $data = {
+	callback => \&HomeConnect_Response,
+	uri      => "/api/homeappliances/" . $hash->{haId} . "/programs/active",
+	data     =>
+	  "{\"data\":{\"key\":\"$program\",\"options\":[]}}"
+  };
+
+  Log3 $hash->{name}, 3, "[HomeConnect] Force start progam $program with uri " . $data->{uri} . " and data " . $data->{data};
   HomeConnect_Request( $hash, $data );
 }
 
