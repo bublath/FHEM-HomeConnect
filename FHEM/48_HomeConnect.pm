@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "1.21";
+my $HCversion = "1.22";
 #
 # $Id: xx $
 #
@@ -1227,6 +1227,7 @@ sub HomeConnect_Timer {
 	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.RemainingProgramTimeHHMM", "" ) if HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.RemainingProgramTimeHHMM", undef );
 	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.ProgramProgress", "0 %" ) if HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.ProgramProgress", "0 %" ) ne "0 %";
 	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.BSH.Common.Option.ElapsedProgramTime", "" ) if HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.ElapsedProgramTime", undef );
+	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.BSH.Common.Option.ElapsedProgramTimeHHMM", "" ) if HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.ElapsedProgramTimeHHMM", undef );
 	HomeConnect_readingsBulkUpdate( $hash, $prefix.".Option.ProcessPhase", "" ) if HomeConnect_ReadingsVal( $hash, $prefix.".Option.ProcessPhase", undef );
 	$HomeConnect_DeviceDefaults=\%{$HomeConnectConf::HomeConnect_DeviceDefaults{$hash->{type}}};
 	foreach my $reading (@{$HomeConnect_DeviceDefaults->{clear}}) {
@@ -1803,8 +1804,10 @@ sub HomeConnect_CheckState($) {
   if (ReadingsAge($name,HomeConnect_ReplaceReading($hash,"BSH.Common.Option.ElapsedProgramTime"),100)>70) {
 	if ($hash->{helper}->{etime}) {
 		my $delta=int(gettimeofday())-int($hash->{helper}->{etime});
-		HomeConnect_FileLog($hash,"Elapsed:".$hash->{helper}->{elapsed}+$delta);
-		HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Option.ElapsedProgramTime", $hash->{helper}->{elapsed}+$delta . " seconds",1 );
+		HomeConnect_FileLog($hash,"Elapsed:".($hash->{helper}->{elapsed}+$delta));
+		my $value=$hash->{helper}->{elapsed}+$delta;
+		HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Option.ElapsedProgramTime", $value . " seconds",1 );
+		HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Option.ElapsedProgramTimeHHMM", HomeConnect_ConvertSeconds($value) ,1 );
 	} else {
 		$hash->{helper}->{etime}=int(gettimeofday());
 	}
@@ -2383,6 +2386,10 @@ sub HomeConnect_ReadEventChannel($) {
 			delete $hash->{helper}->{rtime}; #Clear timestamps for calculating remaining/elapsed time
 		  }
 		  $checkstate = 1;
+		}
+		elsif ( $key =~ /(ElapsedProgramTime)/ ) {
+			HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.ElapsedProgramTimeHHMM", HomeConnect_ConvertSeconds($value));
+			$checkstate = 1;
 		}
 		elsif ( $key =~ /AlarmClockElapsed/ ) {
 		  if ( $value =~ /Present/ ) {
