@@ -58,13 +58,13 @@ use vars qw(%HomeConnect_DeviceDefaults);
   "off"			=> "Aus",
   "autostart"   => "Autostart",
   "temperature" => "Temperatur",
-  "Washing"	=> "Waschen",
-  "FillingDetergent" => "Waschmittel",
-  "DetectingLoad" => "Analyse",
-  "IntermediateSpin" => "Zwischenschleudern",
-  "RinsingSoftener" => "Weichmacher",
-  "Drying" => "Trocknen",
-  "SpinningFinal" => "Endschleudern"
+  "washing"	=> "Waschen",
+  "fillingdetergent" => "Waschmittel",
+  "detectingload" => "Analyse",
+  "intermediatespin" => "Zwischenschleudern",
+  "rinsingsoftener" => "Weichmacher",
+  "drying" => "Trocknen",
+  "spinningfinal" => "Endschleudern"
 	},
 	"EN" => {
   "ok"          => "OK",
@@ -105,7 +105,7 @@ use vars qw(%HomeConnect_DeviceDefaults);
   "off"			=> "off",
   "autostart"   => "autostart",
   "temperature" => "temperature",
-  "SpinningFinal" => "final spin"
+  "spinningfinal" => "final spin"
 	}
 );
 

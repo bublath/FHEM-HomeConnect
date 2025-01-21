@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "1.20";
+my $HCversion = "1.21";
 #
 # $Id: xx $
 #
@@ -1800,21 +1800,26 @@ sub HomeConnect_CheckState($) {
   my $trans  = $HomeConnect_Translation->{$lang}->{ lc $operationState };
   $trans=$operationState if (!defined $trans or $trans eq "");
   
-  if (ReadingsAge($name,"BSH.Common.Option.ElapsedProgramTime",-1)>120) {
+  if (ReadingsAge($name,HomeConnect_ReplaceReading($hash,"BSH.Common.Option.ElapsedProgramTime"),100)>70) {
 	if ($hash->{helper}->{etime}) {
-		my $delta=gettimeofday()-$hash->{helper}->{etime};
+		my $delta=int(gettimeofday())-int($hash->{helper}->{etime});
 		HomeConnect_FileLog($hash,"Elapsed:".$hash->{helper}->{elapsed}+$delta);
-		HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.ElapsedProgramTime", $hash->{helper}->{elapsed}+$delta );
+		HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Option.ElapsedProgramTime", $hash->{helper}->{elapsed}+$delta . " seconds",1 );
+	} else {
+		$hash->{helper}->{etime}=int(gettimeofday());
 	}
   }
 
   # Workaround for missing RemainingProgramTime - calculate myself if no update since 2 minutes
   if ($hash->{helper}->{rtime}) {
-	if (ReadingsAge($name,"BSH.Common.Option.RemainingProgramTime",-1)>120) {
-		my $delta=int(gettimeofday())-$hash->{helper}->{rtime};
+	if (ReadingsAge($name,HomeConnect_ReplaceReading($hash,"BSH.Common.Option.RemainingProgramTime"),100)>70) {
+		my $delta=int(gettimeofday())-int($hash->{helper}->{rtime});
 		my $value=$hash->{helper}->{remaining}-$delta;
 		my $rstr=HomeConnect_UpdateRemainingTime($hash,$value);
-		HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.RemainingProgramTimeHHMM", $rstr );
+		HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Option.RemainingProgramTimeHHMM", $rstr,1 );
+		HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Option.RemainingProgramTime", $value . " seconds",1 );
+	} else {
+		$hash->{helper}->{rtime}=int(gettimeofday());
 	}
   }
 
@@ -2376,7 +2381,6 @@ sub HomeConnect_ReadEventChannel($) {
 		  if ($key =~ /RemainingProgramTime/) {
 			HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.RemainingProgramTimeHHMM", $frel );
 			delete $hash->{helper}->{rtime}; #Clear timestamps for calculating remaining/elapsed time
-			delete $hash->{helper}->{etime};
 		  }
 		  $checkstate = 1;
 		}
@@ -2513,11 +2517,12 @@ sub HomeConnect_ReadingsUpdate($$$$$) {
   my $sreading = $1; #Pure last part of the reading
   $sreading=$reading if !$sreading; #Catch case reading has no dots
 
-  if ($sreading =~ $trans) {
+  if ($sreading =~ /$trans/) {
 	my $lvalue=lc $nvalue;
 	my $tvalue=$nvalue;
     $tvalue =~ /\s.*/; #When translating also remove " %", " seconds", " °C" etc. to create a plain value
 	$tvalue=$HomeConnect_Translation->{DE}{$lvalue} if (defined $HomeConnect_Translation->{DE}{$lvalue});
+	print "Translate $sreading $lvalue $tvalue!\n";
 	#In case user wants the program name, try that as well:
 	$tvalue=$hash->{data}->{trans}->{$nvalue} if (defined( $hash->{data}->{trans}->{$nvalue}));
 	$tvalue = decode_utf8($tvalue) if $unicodeEncoding;
