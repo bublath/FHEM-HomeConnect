@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "1.18";
+my $HCversion = "1.19";
 #
 # $Id: xx $
 #
@@ -132,7 +132,8 @@ sub HomeConnect_Init($) {
   $hash->{helper}->{programs}=-1;	#GetPrograms/ResponeGetPrograms
   $hash->{helper}->{options}=-1;		#GetProgramOptions/ResponseGetProgramOptions
   $hash->{helper}->{details}=-1;		#CheckProgram/ResponseCheckProgram
-  $hash->{helper}->{offline}=0;		#Set to 1 if offline error
+  $hash->{offline}=0;		#Set to 1 if offline error
+  $hash->{helper}->{clear}=-1;
     
   delete $hash->{data}->{sets}; #Make sure this gets reset on init
 
@@ -183,13 +184,13 @@ sub HomeConnect_InitWatcher($) {
 
   HomeConnect_Init($hash) if ($hash->{helper}->{init} == -1);
   #All these calls might not work if device is offline - do not try again on offline error
-  HomeConnect_GetSettings($hash) if ($hash->{helper}->{init} == 1 and $hash->{helper}->{settings} == -1 and !$hash->{helper}->{offline});
-  HomeConnect_UpdateStatus($hash) if ($hash->{helper}->{settings} == 1 and $hash->{helper}->{status} == -1 and !$hash->{helper}->{offline});
+  HomeConnect_GetSettings($hash) if ($hash->{helper}->{init} == 1 and $hash->{helper}->{settings} == -1 and !$hash->{offline});
+  HomeConnect_UpdateStatus($hash) if ($hash->{helper}->{settings} == 1 and $hash->{helper}->{status} == -1 and !$hash->{offline});
 
   $hash->{helper}->{init_count}++;
 
   my $done=0;
-  $done=1 if ($hash->{helper}->{init} == 1 and $hash->{helper}->{offline}); # A device that's offline cannot do more
+  $done=1 if ($hash->{helper}->{init} == 1 and $hash->{offline}); # A device that's offline cannot do more
   $done=1 if ($hash->{helper}->{status} == 1); # Programs will be checked in normal Timer
 
   # Check updates more frequently
@@ -197,6 +198,7 @@ sub HomeConnect_InitWatcher($) {
     RemoveInternalTimer($hash);
 	InternalTimer( gettimeofday() + int(rand(5))+1, "HomeConnect_InitWatcher", $hash, 0 );
   } else {
+	HomeConnect_FileLog($hash, "Init Watch done");
     RemoveInternalTimer($hash);
 	HomeConnect_Timer($hash);
   }
@@ -250,7 +252,7 @@ sub HomeConnect_ResponseInit {
   readingsSingleUpdate($hash,".type",$type,0) if ($type); #Save type in hidden reading
   $hash->{brand}     = $appliance->{brand};
   $hash->{vib}       = $appliance->{vib};
-  $hash->{connected} = $appliance->{connected};
+  $hash->{offline} = ($appliance->{connected})?0:1; #Convert from JSON Boolean Type
   Log3 $name, 3, "[HomeConnect_ResponseInit] $name: defined as HomeConnect $hash->{type} $hash->{brand} $hash->{vib}";
   $hash->{helper}->{init}=1;
 
@@ -273,7 +275,21 @@ sub HomeConnect_ResponseInit {
   } else {
 	$hash->{events} = "";
   }
-  
+
+  my @dp=(keys %{$HomeConnect_DeviceDefaults->{programs_DE}});
+  HomeConnect_FileLog($hash,"Defaultprograms:".join(",",@dp));
+  my $int=ReadingsVal($name,".programs","");
+  HomeConnect_FileLog($hash,".programs:".$int);
+  #If no programs are set, try to get it from hidden reading
+  if (!$hash->{programs} or $hash->{programs} eq "") {
+	 if ($int) { #Take internal reading
+		$hash->{programs}=$int;
+	 } else {
+		 #Get from hardcoded defaults
+		$hash->{programs}=join(",",@dp);
+	}
+  }
+
   $hash->{data}->{finished} = $HomeConnect_DeviceDefaults->{finished};
   
   $hash->{data}->{poweroff} = $HomeConnect_DeviceDefaults->{poweroff}
@@ -398,7 +414,7 @@ sub HomeConnect_HandleError($$) {
 	  #-- key SDK.Error.HomeAppliance.Connection.Initialization.Failed
 	  HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Status.OperationState", "Offline", 1 );
 	  $hash->{STATE} = "Offline";
-	  $hash->{helper}->{offline} = 1;
+	  $hash->{offline} = 1;
 	  HomeConnect_readingsSingleUpdate($hash,"BSH.Common.Setting.PowerState","Off",1);
 	  #In offline case, the initalization should just continue to next stage
 	  HomeConnect_CheckState($hash);
@@ -1192,13 +1208,34 @@ sub HomeConnect_Timer {
   my $name = $hash->{NAME};
 
   my $updateTimer = AttrVal( $name, "updateTimer", 5 );
-
+  
   if ( defined $hash->{conn} and AttrVal( $name, "disable", 0 ) == 0 ) {
 	HomeConnect_ReadEventChannel($hash);
   }
 
+  #Clear some settings that mostly make sense in run state
+  if ($hash->{helper}->{clear} and $hash->{helper}->{clear} == -1 and $hash->{prefix}) {
+    $hash->{helper}->{clear} = 0;
+	my $prefix=$hash->{prefix};
+	readingsBeginUpdate($hash);
+	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.StartInRelative", "" ) if HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.StartInRelative", undef );
+	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.StartInRelativeHHMM", "" ) if HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.StartInRelativeHHMM", undef );
+	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.StartAtHHMM", "" ) if HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.StartAtHHMM", undef );
+	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.FinishAtHHMM", "" ) if HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.FinishAtHHMM", undef );
+	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.RemainingProgramTime", "" ) if HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.RemainingProgramTime", undef );
+	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.RemainingProgramTimeHHMM", "" ) if HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.RemainingProgramTimeHHMM", undef );
+	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.ProgramProgress", "0 %" ) if HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.ProgramProgress", "0 %" ) ne "0 %";
+	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.BSH.Common.Option.ElapsedProgramTime", "" ) if HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.ElapsedProgramTime", undef );
+	HomeConnect_readingsBulkUpdate( $hash, $prefix.".Option.ProcessPhase", "" ) if HomeConnect_ReadingsVal( $hash, $prefix.".Option.ProcessPhase", undef );
+	$HomeConnect_DeviceDefaults=\%{$HomeConnectConf::HomeConnect_DeviceDefaults{$hash->{type}}};
+	foreach my $reading (@{$HomeConnect_DeviceDefaults->{clear}}) {
+		HomeConnect_readingsBulkUpdate( $hash, $prefix.".".$reading, "" ) if HomeConnect_ReadingsVal( $hash, $prefix.".".$reading, undef );
+	}
+	readingsEndUpdate( $hash, 1 );	
+  }
+
   #Check all the Status Flags and execute the required queries
-  if ($hash->{helper}->{init} == 1 and !$hash->{helper}->{offline}) { #Sanity check - only if init was successful and not offline
+  if ($hash->{helper}->{init} == 1 and !$hash->{offline}) { #Sanity check - only if init was successful and not offline
 	HomeConnect_GetSettings($hash) if ($hash->{helper}->{settings} == -1);
 	HomeConnect_UpdateStatus($hash) if ($hash->{helper}->{status} == -1);
 
@@ -1212,7 +1249,7 @@ sub HomeConnect_Timer {
 	  HomeConnect_CheckProgram($hash) if ($hash->{helper}->{options} == 1 and $hash->{helper}->{details} == -1 );
 	}
   }
-
+  
   # check if still connected
   if ( !defined $hash->{conn} and AttrVal( $name, "disable", 0 ) == 0 ) {
 
@@ -1341,26 +1378,11 @@ sub HomeConnect_GetPrograms {
   $HomeConnect_DeviceDefaults=\%{$HomeConnectConf::HomeConnect_DeviceDefaults{$hash->{type}}};
 
   $hash->{helper}->{programs} = 0;
-
-  my @dp=(keys %{$HomeConnect_DeviceDefaults->{programs_DE}});
-  HomeConnect_FileLog($hash,"Defaults:".join(",",@dp));
-  my $int=ReadingsVal($name,".programs","");
-  HomeConnect_FileLog($hash,".programs:".$int);
   
   #No programs with any fridges
   if ($hash->{type} =~ /(Fridge)|(Freezer)|(Refrigerator)|(Wine)/) { 
 	#Keep programs=0 so it is clear programoptions etc. won't get called as well
 	return;
-  }
-
-  #If no programs are set, try to get it from hidden reading
-  if (!$hash->{programs} or $hash->{programs} eq "") {
-	 if ($int) { #Take internal reading
-		$hash->{programs}=$int;
-	 } else {
-		 #Get from hardcoded defaults
-		$hash->{programs}=join(",",@dp);
-	}
   }
 
 #-- we do not get a list of programs if a program is active, so we just use the active program name
@@ -1836,6 +1858,7 @@ sub HomeConnect_CheckState($) {
 	$state1 = $trans;
 	$state2 = "-";
 	readingsBulkUpdate($hash,"lastErr","Error or action required",1);
+	$hash->{helper}->{clear}=-1 if ($currentstate ne $state);
   }
   if ( $operationState =~ /(Abort)|(Finished)/ ) {
 	delete $hash->{helper}->{rtime}; #Clear timestamps for calculating remaining/elapsed time
@@ -1844,8 +1867,10 @@ sub HomeConnect_CheckState($) {
 	$state1 = $HomeConnect_Translation->{$lang}->{$state};
 	$state2 = "-";
 	$state = "idle" if $type =~ /Coffe/; # Coffeemakers don't have a door that can be opened -> go to ready right away
+	$hash->{helper}->{clear}=-1 if ($currentstate ne $state);
   }
   if ( $operationState =~ /(Ready)|(Inactive)|(Offline)/ ) {
+	$hash->{helper}->{clear}=-1 if ($currentstate ne $state);
     HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.ProgramProgress", "0 %" ) if $pct>0; #Reset Progress to prevent wrong display when starting next
 	if ($currentstate eq "done" and $door =~ /Closed/) {
 		#Delay switching to "idle" until door gets opened so user continues to get indication that appliance needs to be emptied, even when it goes to "off" automatically
@@ -2247,7 +2272,7 @@ sub HomeConnect_ReadEventChannel($) {
 	  }
 	  my $operationState = HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.OperationState", "" );
 	  HomeConnect_FileLog($hash,"Event:".Dumper($jhash));
-	  $hash->{helper}->{offline}=0; #Assume device can no longer be offline if it is sending events
+	  $hash->{offline}=0; #Assume device can no longer be offline if it is sending events
 
 	  readingsBeginUpdate($hash);
 
@@ -2291,8 +2316,9 @@ sub HomeConnect_ReadEventChannel($) {
 		  if ( $value =~ /On/) {
 			$hash->{helper}->{programs}=-1; #This might as well query selected/active program
 			$hash->{helper}->{settings}=-1; #Some settings like ChildLock might be missing if it was queries in "off" state
-		  } else {
-			HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Setting.ActiveProgram", undef) if ($value =~/Off/);
+		  } elsif ($value =~/Off/) {
+			HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Setting.ActiveProgram", undef);
+			$hash->{helper}->{clear}=-1;
 		  }
 		  $checkstate=1; # Update state on power change
 		} elsif ( $key =~ /EstimatedTotalProgramTime/ ) {
@@ -2514,6 +2540,7 @@ sub HomeConnect_ReadingsVal($$$) {
   my $nreading = HomeConnect_ReplaceReading( $hash, $reading );
 
   my $res = ReadingsVal( $name, $nreading, $default );
+  return $res if !defined($res);
   $res =~ s/\s$//;    # Remove any trailing spaces
   Log3 $name, 4, "[HomeConnect_ReadingsVal] $name: $reading->$nreading : $res";
   return $res;

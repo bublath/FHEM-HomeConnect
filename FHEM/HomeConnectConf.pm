@@ -58,6 +58,12 @@ use vars qw(%HomeConnect_DeviceDefaults);
   "off"			=> "Aus",
   "autostart"   => "Autostart",
   "temperature" => "Temperatur",
+  "Washing"	=> "Waschen",
+  "FillingDetergent" => "Waschmittel",
+  "DetectingLoad" => "Analyse",
+  "IntermediateSpin" => "Zwischenschleudern",
+  "RinsingSoftener" => "Weichmacher",
+  "Drying" => "Trocknen",
   "SpinningFinal" => "Endschleudern"
 	},
 	"EN" => {
@@ -113,6 +119,10 @@ use vars qw(%HomeConnect_DeviceDefaults);
   "CoffeeMaker"   => "max_heizungsthermostat"
 );
 
+#General Readings to clear when not running or delayedstart
+#"FinishAtHHMM","ProcessPhase","RemainingProgramTime","RemainingProgamTimeHHMM","ProgramProgress","ActiveProgram","StartAtHHMM","StartInRelativeHHMM","StartInRelative"
+#"Event.ProgramAborted" -> delete reading
+
 #-- Dishwasher
 #   known settings ChildLock,PowerState
 #   known programs Intensiv70,Auto2,Eco50,Quick45,PreRinse,NightWash,Kurz60,MachineCare
@@ -123,6 +133,7 @@ $HomeConnect_DeviceDefaults{"Dishwasher"} = {
 	"prefix" => "Dishcare.Dishwasher",
 	"poweroff" => "PowerOff",
 	"activeoptions" => ["SilenceOnDemand"],
+	"clear" => ["Option.BaseProgram","Option.ProgramName"],
 	"events" => [ "SaltNearlyEmpty", "RinseAidNearlyEmpty" ],
 	"programs_DE" => {
 		"Eco50"              => "Eco50",
@@ -147,6 +158,7 @@ $HomeConnect_DeviceDefaults{"Hob"} = {
 	"settings" => [ "AlarmClock", "PowerState" ],
 	"prefix" => "Cooking.Hob",
 	"poweroff" => undef,
+	"clear" => [],
 	"events" => [],
 	"programs_DE" => {
 	  "PowerLevelMode"   => "Leistung",
@@ -163,6 +175,7 @@ $HomeConnect_DeviceDefaults{"Hood"} = {
 	"settings" => [ "PowerState", "Lighting", "LightingBrightness" ],
 	"prefix" => "Cooking.Common",
 	"poweroff" => undef,
+	"clear" => [],
 	"events" => ["GreaseFilterMaxSaturationNearlyReached", "GreaseFilterMaxSaturationReached" ],
 	"programs_DE" => {
 		"Lighting"            => "Beleuchtung",
@@ -184,6 +197,7 @@ $HomeConnect_DeviceDefaults{"Oven"} = {
 	"settings" => [ "AlarmClock", "PowerState" ],
 	"prefix" => "Cooking.Oven",
 	"poweroff" => "PowerStandby",
+	"clear" => ["Status.CurrentCavityTemperature"],
 	"events" => [],
 	"programs_DE" => {
 	  "HeatingMode.TopBottomHeating" => "Ober/Unterhitze",
@@ -206,6 +220,7 @@ $HomeConnect_DeviceDefaults{"Refrigerator"} = {
 	"settings" => [ "ChildLock:On,Off", "PowerState" ],
 	"prefix" => "Refrigeration.FridgeFreezer",
 	"powerOff" => undef,
+	"clear" => [],
 	"events" => ["DoorAlarmRefrigerator"],
 	"programs_DE" => {
 	  "SetpointTemperatureRefrigerator" => "Temperatur",
@@ -222,6 +237,7 @@ $HomeConnect_DeviceDefaults{"FridgeFreezer"} = {
 	"settings" => [ "ChildLock:On,Off", "PowerState" ],
 	"prefix" => "Refrigeration.FridgeFreezer",
 	"poweroff" => undef,
+	"clear" => [],
 	"events" => [ "DoorAlarmFreezer", "DoorAlarmRefrigerator", "TemperatureAlarmFreezer" ],
 	"programs_DE" => {}
 };
@@ -236,6 +252,7 @@ $HomeConnect_DeviceDefaults{"Washer"} = {
 	"settings" => [ "ChildLock:On,Off", "PowerState" ],
 	"prefix" => "LaundryCare.Washer",
 	"poweroff" => "MainsOff",
+	"clear" => [],
 	"events" => [ "IDos1FillLevelPoor", "IDos2FillLevelPoor" ],
 	"programs_DE" => {
 	  "Cotton"                => "Baumwolle",
@@ -269,6 +286,7 @@ $HomeConnect_DeviceDefaults{"Dryer"} = {
 	"settings" => [ "ChildLock:On,Off", "PowerState" ],
 	"prefix" => "LaundryCare.Dryer",
 	"poweroff" => "PowerOff",
+	"clear" => [],
 	"events" => [],
 	"finished" => "DryingProcessFinished",
 	"programs_DE" => {
@@ -302,6 +320,7 @@ $HomeConnect_DeviceDefaults{"WasherDryer"} = {
 	"settings" => [ "ChildLock:On,Off", "PowerState" ],
 	"prefix" => "LaundryCare.WasherDryer",
 	"poweroff" => "PowerOff",
+	"clear" => [],
 	"events" => [],
 	"programs_DE" => {
 	  "Mix.HHMix.HHMix"                           => "Schnell/Mix",
@@ -324,6 +343,7 @@ $HomeConnect_DeviceDefaults{"CookProcessor"} = {
 	"settings" => [ "BrightnessDisplay", "SoundVolume", "PowerState" ],
 	"prefix" => "ConsumerProducts.CookProcessor",
 	"poweroff" => "PowerOff",
+	"clear" => [],
 	"events" => ["StepFinished"],
 	"programs_DE" => {
 		"BuildingBlock.AutomaticWarmingUpViscousDishes" => "AutomaticWarmingUpViscousDishes",
@@ -372,6 +392,7 @@ $HomeConnect_DeviceDefaults{"CoffeeMaker"} = {
 	"settings" => [ "ChildLock:On,Off", "PowerState", "CupWarmer" ],
 	"prefix" => "ConsumerProducts.CoffeeMaker",
 	"poweroff" => "PowerStandby",
+	"clear" => [],
 	"events" => [ "BeanContainerEmpty", "WaterTankEmpty", "DripTrayFull" ],
 	"programs_DE" => {
 	  "Beverage.Ristretto"             => "Ristretto",
@@ -415,6 +436,7 @@ $HomeConnect_DeviceDefaults{"CleaningRobot"} = {
 	"setting" => ["PowerState"],
 	"prefix" => "ConsumerProducts.CleaningRobot",
 	"poweroff" => "PowerOff",
+	"clear" => [],
 	"events" => [ "EmptyDustBoxAndCleanFilter", "RobotIsStuck", "DockingStationNotFound" ],
 	"programs_DE" => {}
 };
