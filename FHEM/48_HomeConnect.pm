@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "1.19";
+my $HCversion = "1.20";
 #
 # $Id: xx $
 #
@@ -516,7 +516,7 @@ sub HomeConnect_Set($@) {
 
 #-- no programs for freezers, fridge freezers, refrigerators and wine coolers
 #   and due to API restrictions, wwe may also not set the programs for Hob and Oven
-  if ( $hash->{type} !~ /(Hob)|(Oven)|(Fridge)|(Freezer)|(Refrigerator)|(Wine)/ ) {
+  if ( $hash->{type} !~ /(Hob)|(Fridge)|(Freezer)|(Refrigerator)|(Wine)/ ) {
 	push(@cmds,"StopProgram:noArg") if ($operationState =~ /((Active)|(Run)|(Pause)|(DelayedStart))/);
 	push(@cmds,"PauseProgram:noArg") if ($operationState =~ /((Active)|(Run))/ and "PauseProgram" !~ /$excludes/);
 	push(@cmds,"ResumeProgram:noArg") if ($operationState =~ /(Pause)/);
@@ -627,6 +627,7 @@ sub HomeConnect_Set($@) {
 	#-- start current program -------------------------------------------------
   }
   elsif ( $command =~ /StartX/) {
+  	return HomeConnect_SendCommand($hash,"ResumeProgram");
 	return HomeConnect_StartProgram2($hash,$a[0]);
   }
   elsif ( $command =~ /(s|S)tart(p|P)rogram/ ) {
@@ -818,7 +819,7 @@ sub HomeConnect_MakeJSON($$$) {
   my $type=$def->{type};
   $type="undef" if !$type; #If no type skip all conversions and checks
   my $values=$def->{values}; #Make a pattern of the value list
-  $type = "Boolean" if ($type eq "undef" and $values =~ /(o|O)n,(o|O)ff/);
+  $type = "Boolean" if ($type eq "undef" and $values and $values =~ /(o|O)n,(o|O)ff/);
   if ($values) {
 	$values =~ s/,/\$|^/g;
 	$values = "^".$values."\$";
@@ -1803,6 +1804,7 @@ sub HomeConnect_CheckState($) {
 	if ($hash->{helper}->{etime}) {
 		my $delta=gettimeofday()-$hash->{helper}->{etime};
 		HomeConnect_FileLog($hash,"Elapsed:".$hash->{helper}->{elapsed}+$delta);
+		HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.ElapsedProgramTime", $hash->{helper}->{elapsed}+$delta );
 	}
   }
 
@@ -1826,8 +1828,8 @@ sub HomeConnect_CheckState($) {
 	$tim2  =~ s/ \D+//g; # remove seconds
 	$temp  =~ s/ \D+//g; # remove °C
 	$temp = int($temp); #Remove decimals
-	$tim = HomeConnect_ConvertSeconds($tim2) if $tim2>0; #Default is elapsed
-	$tim = HomeConnect_ConvertSeconds($tim1) if $tim1>0; #Alternative Remaining
+	$tim = HomeConnect_ConvertSeconds($tim2) if $tim and $tim2>0; #Default is elapsed
+	$tim = HomeConnect_ConvertSeconds($tim1) if $tim1 and $tim1>0; #Alternative Remaining
 	$tim .= "/" if ($temp>0 and $tim ne "");
 	$tim .= $temp." °C" if $temp>0;
   }
@@ -1841,6 +1843,9 @@ sub HomeConnect_CheckState($) {
 		#state changed into running - now get the program options that might only be valid during run (e.g. SilenceOnDemand)
 		$hash->{helper}->{options} = -1 if ($type !~ /Coffee/); #Except for coffemakers where this would create errors
 		HomeConnect_FileLog($hash,"request updatePO as $currentstate != $state and program=$program");
+		#Track ElapsedProgramTime for all appliances - even if not provided
+		$hash->{helper}->{etime}=int(gettimeofday()); #Remember Timestamp of last update
+		$hash->{helper}->{elapsed}=0;
 	}
   }
   if ( $operationState =~ /Pause/ ) {
@@ -2316,6 +2321,8 @@ sub HomeConnect_ReadEventChannel($) {
 		  if ( $value =~ /On/) {
 			$hash->{helper}->{programs}=-1; #This might as well query selected/active program
 			$hash->{helper}->{settings}=-1; #Some settings like ChildLock might be missing if it was queries in "off" state
+			#Delete the confusing Abort reading if present (should do nothing if reading does not exist)
+			readingsDelete($hash, HomeConnect_ReplaceReading($hash,"BSH.Common.Event.ProgramAborted")); 
 		  } elsif ($value =~/Off/) {
 			HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Setting.ActiveProgram", undef);
 			$hash->{helper}->{clear}=-1;
