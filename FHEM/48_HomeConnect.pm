@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "1.24";
+my $HCversion = "1.25";
 #
 # $Id: xx $
 #
@@ -136,7 +136,7 @@ sub HomeConnect_Init($) {
   $hash->{offline}=0;		#Set to 1 if offline error
   $hash->{helper}->{clear}=-1;
   $hash->{helper}->{stateupdate}=0;
-
+  $hash->{helper}->{elapsed}=0;
     
   delete $hash->{data}->{sets}; #Make sure this gets reset on init
 
@@ -544,17 +544,16 @@ sub HomeConnect_Set($@) {
 
   if ( defined( $hash->{data}->{options} ) ) {
 	foreach my $key ( keys %{ $hash->{data}->{options} } ) {
-	  if ($key !~ /$excludes/ and defined($hash->{data}->{sets}->{$key})) { #Only keys with current values can be set
-		  #-- special key for delayed start
-		  if ( $key =~ /((StartInRelative)|(FinishInRelative))/ ) {
+	  #-- special key for delayed start
+	  if ( $key =~ /((StartInRelative)|(FinishInRelative))/ ) {
 			push(@cmds,"DelayStartTime:time DelayEndTime:time DelayRelative:time") if $remoteStartAllowed;
-		  } else {
-			my $values=$hash->{data}->{options}->{$key}->{values};
-			$availableOpts .= $key;
-			$availableOpts .= ":".$values if $values;
-			$availableOpts .= " ";
-		  }
-		}
+	  }
+	  if ($key !~ /$excludes/ and defined($hash->{data}->{sets}->{$key})) { #Only keys with current values can be set
+		my $values=$hash->{data}->{options}->{$key}->{values};
+		$availableOpts .= $key;
+		$availableOpts .= ":".$values if $values;
+		$availableOpts .= " ";
+	  }
 	}
   }
   
@@ -1095,6 +1094,20 @@ sub HomeConnect_DelayTimer($$$$) {
 	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.FinishAtHHMM", $endtime );
 	readingsEndUpdate( $hash, 1 );
   }
+  #TODO new method
+  if ($operationState =~ /DelayedStart/) {
+    if ($delstart) {
+	  my $data = {
+	  callback => \&HomeConnect_Response,
+	  uri      => "/api/homeappliances/$haId/programs/active/options/BSH.Common.Option.StartInRelative"
+	  };
+	} elsif ($delfin) {
+	  my $data = {
+	  callback => \&HomeConnect_Response,
+	  uri      => "/api/homeappliances/$haId/programs/active/options/BSH.Common.Option.StartInRelative"
+	  };
+	}		
+  }
   HomeConnect_StartProgram($hash) if (defined $start and $start eq "start");
 }
 
@@ -1132,6 +1145,7 @@ sub HomeConnect_StartProgram($) {
   }
 
   my @optdata;
+  my $enable;
 
   foreach my $key ( keys %{ $hash->{data}->{options} } ) {
 
@@ -1143,15 +1157,16 @@ sub HomeConnect_StartProgram($) {
 	next
 	  if ( defined( $hash->{data}->{options}->{$key}->{update} )
 	  && $hash->{data}->{options}->{$key}->{update} eq "On" );
-	next if (!defined ($hash->{data}->{sets}->{$key})); #Don't include values we're currently not allowed to set (like SilenceOnDemand)
-
+	$enable=$hash->{data}->{sets}->{$key};
 	my $value = HomeConnect_ReadingsVal( $hash, $hash->{data}->{options}->{$key}->{name}, "" );
 
-	#-- safeguard against missing delay
-	$value = "0 seconds"
-	  if ( $key eq "StartInRelative" && ($value eq ""  or !($hash->{helper}->{delayedstart})));
-	$value = "0 seconds"
-	  if ( $key eq "FinishInRelative" && !$hash->{helper}->{delayedstart} );
+	#-- safeguard against missing delay and enable delayed start despite missing in "sets" list
+	$enable=1 
+	  if ($key eq "StartInRelative" and $value ne ""  and $hash->{helper}->{delayedstart} );
+	$enable=1
+	  if ($key eq "FinishInRelative" and $value ne ""  and $hash->{helper}->{delayedstart} );
+
+	next if (!defined ($enable)); #Don't include values we're currently not allowed to set (like SilenceOnDemand)
 	  
 	Log3 $name, 3, "[HomeConnect_StartProgram] $name: option $key has value $value";
 
@@ -1828,7 +1843,7 @@ sub HomeConnect_CheckState($) {
   $trans=$operationState if (!defined $trans or $trans eq "");
   
   if (ReadingsAge($name,HomeConnect_ReplaceReading($hash,"BSH.Common.Option.ElapsedProgramTime"),100)>70) {
-	if ($hash->{helper}->{etime} && $hash->{helper}->{elapsed}) {
+	if ($hash->{helper}->{etime}) {
 		my $delta=int(gettimeofday())-int($hash->{helper}->{etime});
 		my $value=$hash->{helper}->{elapsed}+$delta;
 		HomeConnect_FileLog($hash,"Elapsed:".$value);
