@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "1.25";
+my $HCversion = "1.26";
 #
 # $Id: xx $
 #
@@ -978,7 +978,7 @@ sub HomeConnect_DelayTimer($$$$) {
   else {
 	return "[HomeConnect_DelayTimer] $name: error, input value $value is not a time spec";
   }
-  Log3 $name, 3, "[HomeConnect_DelayTimer] $name: requested Delay $secs ($thour:$tmin)";
+  HomeConnect_FileLog($hash, "Requested Delay $secs ($thour:$tmin)";
 
   #-- how long does the selected program run
   my $delta;
@@ -1102,6 +1102,7 @@ sub HomeConnect_DelayTimer($$$$) {
   }
   #TODO new method
   if ($operationState =~ /DelayedStart/) {
+    HomeConnect_FileLog($hash, "Device already delayed, update $option to $val";
 	my $json=HomeConnect_MakeJSON($hash,\%{$hash->{data}->{options}->{$option}},$val);
 	$json = "{\"data\":".$json."}"; 
 	my $data = {
