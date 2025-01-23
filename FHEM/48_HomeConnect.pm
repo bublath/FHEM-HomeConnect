@@ -726,6 +726,7 @@ sub HomeConnect_Set($@) {
 	Log3 $name, 3, "[HomeConnect] selecting program $program with uri " . $data->{uri} . " and data " . $data->{data};
 	HomeConnect_Request( $hash, $data );
   }
+  return;
 }
 
 ###############################################################################
@@ -1015,7 +1016,7 @@ sub HomeConnect_DelayTimer($$$$) {
   HomeConnect_FileLog($hash,"$command $value $delta");
 
   my $operationState = HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.OperationState", "" );
-  if ($operationState =~ /DelayedStart/) {
+  if ($operationState =~ /DISABLE-DelayedStart/) {
 	  #if device is already in DelayedStart, program needs to be stopped first
 	  my $data = {
 	  callback => \&HomeConnect_Response,
@@ -1071,7 +1072,8 @@ sub HomeConnect_DelayTimer($$$$) {
   $endtime   = sprintf( "%d:%02d", $endhour,   $endmin );
 
   $hash->{helper}->{delayedstart}=1 if ($delstart or $delfin);
-
+  my $option;
+  my $val;
   #-- device has option StartInRelative
   if ($delstart) {
 	my $h = int( $startinrelative / 3600 );
@@ -1082,6 +1084,8 @@ sub HomeConnect_DelayTimer($$$$) {
 	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.StartAtHHMM", $starttime );
 	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.FinishAtHHMM", $endtime );
 	readingsEndUpdate( $hash, 1 );
+	$option="StartInRelative";
+	$val=$startinrelative;
 	#-- device has option FinishInRelative
   }
   else {
@@ -1093,22 +1097,23 @@ sub HomeConnect_DelayTimer($$$$) {
 	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.StartAtHHMM", $starttime );
 	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.FinishAtHHMM", $endtime );
 	readingsEndUpdate( $hash, 1 );
+	$option="FinishInRelative";
+	$val=$endinrelative;
   }
   #TODO new method
   if ($operationState =~ /DelayedStart/) {
-    if ($delstart) {
-	  my $data = {
+	my $json=HomeConnect_MakeJSON($hash,\%{$hash->{data}->{options}->{$option}},$val);
+	$json = "{\"data\":".$json."}"; 
+	my $data = {
 	  callback => \&HomeConnect_Response,
-	  uri      => "/api/homeappliances/$haId/programs/active/options/BSH.Common.Option.StartInRelative"
+	  uri      => "/api/homeappliances/$haId/programs/active/options/BSH.Common.Option.$option",
+	  data	   => $json
 	  };
-	} elsif ($delfin) {
-	  my $data = {
-	  callback => \&HomeConnect_Response,
-	  uri      => "/api/homeappliances/$haId/programs/active/options/BSH.Common.Option.StartInRelative"
-	  };
-	}		
+	Log3 $name, 3, "[HomeConnect] $name: change delay with " . $data->{uri} . " and data " . $data->{data};
+	HomeConnect_Request($hash,$data);
+  } else {
+	HomeConnect_StartProgram($hash) if (defined $start and $start eq "start");
   }
-  HomeConnect_StartProgram($hash) if (defined $start and $start eq "start");
 }
 
 ###############################################################################
@@ -1842,31 +1847,35 @@ sub HomeConnect_CheckState($) {
   my $trans  = $HomeConnect_Translation->{$lang}->{ lc $operationState };
   $trans=$operationState if (!defined $trans or $trans eq "");
   
-  if (ReadingsAge($name,HomeConnect_ReplaceReading($hash,"BSH.Common.Option.ElapsedProgramTime"),100)>70) {
-	if ($hash->{helper}->{etime}) {
-		my $delta=int(gettimeofday())-int($hash->{helper}->{etime});
-		my $value=$hash->{helper}->{elapsed}+$delta;
-		HomeConnect_FileLog($hash,"Elapsed:".$value);
-		HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Option.ElapsedProgramTime", $value . " seconds",1 );
-		HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Option.ElapsedProgramTimeHHMM", HomeConnect_ConvertSeconds($value) ,1 );
-	} else {
-		$hash->{helper}->{etime}=int(gettimeofday());
-	}
-  }
+  if ($operationState =~ /(Run)|(Pause)/ ) {
+	  if (ReadingsAge($name,HomeConnect_ReplaceReading($hash,"BSH.Common.Option.ElapsedProgramTime"),100)>70) {
+		if ($hash->{helper}->{etime}) {
+			my $delta=int(gettimeofday())-int($hash->{helper}->{etime});
+			my $value=$hash->{helper}->{elapsed}+$delta;
+			HomeConnect_FileLog($hash,"Elapsed:".$value);
+			HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Option.ElapsedProgramTime", $value . " seconds",1 );
+			HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Option.ElapsedProgramTimeHHMM", HomeConnect_ConvertSeconds($value) ,1 );
+		} else {
+			$hash->{helper}->{etime}=int(gettimeofday());
+		}
+	  }
 
-  # Workaround for missing RemainingProgramTime - calculate myself if no update since 2 minutes
-  if ($hash->{helper}->{rtime}) {
-	if (ReadingsAge($name,HomeConnect_ReplaceReading($hash,"BSH.Common.Option.RemainingProgramTime"),100)>70) {
-		my $delta=int(gettimeofday())-int($hash->{helper}->{rtime});
-		my $value=$hash->{helper}->{remaining}-$delta;
-		my $rstr=HomeConnect_UpdateRemainingTime($hash,$value);
-		HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Option.RemainingProgramTimeHHMM", $rstr,1 );
-		HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Option.RemainingProgramTime", $value . " seconds",1 );
-	} else {
-		$hash->{helper}->{rtime}=int(gettimeofday());
-	}
+	  # Workaround for missing RemainingProgramTime - calculate myself if no update since 2 minutes
+	  if ($hash->{helper}->{rtime}) {
+		if (ReadingsAge($name,HomeConnect_ReplaceReading($hash,"BSH.Common.Option.RemainingProgramTime"),100)>70) {
+			my $delta=int(gettimeofday())-int($hash->{helper}->{rtime});
+			my $value=$hash->{helper}->{remaining}-$delta;
+			my $rstr=HomeConnect_UpdateRemainingTime($hash,$value);
+			HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Option.RemainingProgramTimeHHMM", $rstr,1 );
+			HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Option.RemainingProgramTime", $value . " seconds",1 );
+		} else {
+			$hash->{helper}->{rtime}=int(gettimeofday());
+		}
+	  }
+  } else {
+	delete $hash->{helper}->{rtime}; #Clear timestamps for calculating remaining/elapsed time
+	delete $hash->{helper}->{etime};	  
   }
-
   
   if ( $type =~ /Oven/ ) {
 	my $tim1 = HomeConnect_ReadingsVal( $hash,	"BSH.Common.Option.RemainingProgramTime", "0 seconds" );
@@ -1916,8 +1925,6 @@ sub HomeConnect_CheckState($) {
 	$hash->{helper}->{clear}=-1 if ($currentstate ne $state);
   }
   if ( $operationState =~ /(Abort)|(Finished)/ ) {
-	delete $hash->{helper}->{rtime}; #Clear timestamps for calculating remaining/elapsed time
-	delete $hash->{helper}->{etime};
 	$state  = "done";
 	$state1 = $HomeConnect_Translation->{$lang}->{$state};
 	$state2 = "-";
@@ -1925,7 +1932,6 @@ sub HomeConnect_CheckState($) {
 	$hash->{helper}->{clear}=-1 if ($currentstate ne $state);
   }
   if ( $operationState =~ /(Ready)|(Inactive)|(Offline)/ ) {
-	$hash->{helper}->{clear}=-1 if ($currentstate ne $state);
     HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.ProgramProgress", "0 %" ) if $pct>0; #Reset Progress to prevent wrong display when starting next
 	if ($currentstate eq "done" and $door =~ /Closed/) {
 		#Delay switching to "idle" until door gets opened so user continues to get indication that appliance needs to be emptied, even when it goes to "off" automatically
