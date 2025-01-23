@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "1.26";
+my $HCversion = "1.27";
 #
 # $Id: xx $
 #
@@ -978,7 +978,7 @@ sub HomeConnect_DelayTimer($$$$) {
   else {
 	return "[HomeConnect_DelayTimer] $name: error, input value $value is not a time spec";
   }
-  HomeConnect_FileLog($hash, "Requested Delay $secs ($thour:$tmin)";
+  HomeConnect_FileLog($hash, "Requested Delay $secs ($thour:$tmin)");
 
   #-- how long does the selected program run
   my $delta;
@@ -1083,6 +1083,7 @@ sub HomeConnect_DelayTimer($$$$) {
 	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.StartInRelativeHHMM", sprintf( "%d:%02d", $h, $m ) );
 	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.StartAtHHMM", $starttime );
 	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.FinishAtHHMM", $endtime );
+	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.FinishInRelativeHHMM", HomeConnect_ConvertSeconds($endinrelative) );
 	readingsEndUpdate( $hash, 1 );
 	$option="StartInRelative";
 	$val=$startinrelative;
@@ -1102,7 +1103,7 @@ sub HomeConnect_DelayTimer($$$$) {
   }
   #TODO new method
   if ($operationState =~ /DelayedStart/) {
-    HomeConnect_FileLog($hash, "Device already delayed, update $option to $val";
+    HomeConnect_FileLog($hash, "Device already delayed, update $option to $val");
 	my $json=HomeConnect_MakeJSON($hash,\%{$hash->{data}->{options}->{$option}},$val);
 	$json = "{\"data\":".$json."}"; 
 	my $data = {
@@ -1112,6 +1113,7 @@ sub HomeConnect_DelayTimer($$$$) {
 	  };
 	Log3 $name, 3, "[HomeConnect] $name: change delay with " . $data->{uri} . " and data " . $data->{data};
 	HomeConnect_Request($hash,$data);
+	HomeConnect_CheckState($hash);
   } else {
 	HomeConnect_StartProgram($hash) if (defined $start and $start eq "start");
   }
