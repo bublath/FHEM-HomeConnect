@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "1.22";
+my $HCversion = "1.23";
 #
 # $Id: xx $
 #
@@ -71,6 +71,7 @@ sub HomeConnect_Initialize($) {
 	. "logfile: "
 	. "excludeSettings: "
 	. "extraOptions: "
+	. "stateUpdate: "
 	. $readingFnAttributes;
   return;
 }
@@ -134,6 +135,8 @@ sub HomeConnect_Init($) {
   $hash->{helper}->{details}=-1;		#CheckProgram/ResponseCheckProgram
   $hash->{offline}=0;		#Set to 1 if offline error
   $hash->{helper}->{clear}=-1;
+  $hash->{helper}->{stateupdate}=0;
+
     
   delete $hash->{data}->{sets}; #Make sure this gets reset on init
 
@@ -486,15 +489,25 @@ sub HomeConnect_Set($@) {
   if ( $type =~ /(Hood)|(Dishwasher)/ ) {
 	push(@cmds,"AmbientLightCustomColor:colorpicker,RBG") if ("AmbientLightCustomColor" !~ /$excludes/);
   }
-  
-  if ( $type =~ /(Fridge)|(Freezer)|(Refrigerator)/ ) { #+Oven?
+ 
+# Would expect this to be automatically detect with get Settings 
+#  if ( $type =~ /(CoffeeMaker)/ ) {
+#	push(@cmds,"CupWarmer:On,Off") if ("CupWarmer" !~ /$excludes/);
+#  }
+
+  if ( $type =~ /(Fridge)|(Freezer)|(Refrigerator)/ ) {
 	my $da1=HomeConnect_ReadingsVal($hash,"Refrigeration.Common.Setting.Door.AssistantFridge","Off");
 	my $da2=HomeConnect_ReadingsVal($hash,"Refrigeration.Common.Setting.Door.AssistantFreezer","Off");
 	if ($da1 eq "On" or $da2 eq "On") {
 		push(@cmds,"OpenDoor:noArg") if ("OpenDoor" !~ /$excludes/);
 	}
   }
-  
+
+  if ( $type =~ /(Oven)/ ) {
+		push(@cmds,"OpenDoor:noArg") if ("OpenDoor" !~ /$excludes/);
+		push(@cmds,"PartlyOpenDoor:noArg") if ("PartlyOpenDoor" !~ /$excludes/);
+  }
+
   #-- programs taken from hash or empty
   my $programs = $hash->{programs};
   $programs = "" if !defined($programs);
@@ -1213,10 +1226,24 @@ sub HomeConnect_Timer {
   if ( defined $hash->{conn} and AttrVal( $name, "disable", 0 ) == 0 ) {
 	HomeConnect_ReadEventChannel($hash);
   }
+  
+  if ($hash->{helper}->{stateupdate} and ReadingsVal($name,"state","") eq "run") {
+    my $upd=AttrVal($name,"stateUpdate",0);
+	if ($upd) {
+		if ($hash->{helper}->{stateupdate}<int(gettimeofday())) {
+			$hash->{helper}->{details} = -1;
+			$hash->{helper}->{stateupdate}=int(gettimeofday())+$upd;
+		}
+	} else {
+	  $hash->{helper}->{stateupdate}=0;
+    }
+  }
+
 
   #Clear some settings that mostly make sense in run state
   if ($hash->{helper}->{clear} and $hash->{helper}->{clear} == -1 and $hash->{prefix}) {
     $hash->{helper}->{clear} = 0;
+    $hash->{helper}->{stateupdate}=0;
 	my $prefix=$hash->{prefix};
 	readingsBeginUpdate($hash);
 	HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.StartInRelative", "" ) if HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.StartInRelative", undef );
@@ -1802,10 +1829,10 @@ sub HomeConnect_CheckState($) {
   $trans=$operationState if (!defined $trans or $trans eq "");
   
   if (ReadingsAge($name,HomeConnect_ReplaceReading($hash,"BSH.Common.Option.ElapsedProgramTime"),100)>70) {
-	if ($hash->{helper}->{etime}) {
+	if ($hash->{helper}->{etime} && $hash->{helper}->{elapsed}) {
 		my $delta=int(gettimeofday())-int($hash->{helper}->{etime});
-		HomeConnect_FileLog($hash,"Elapsed:".($hash->{helper}->{elapsed}+$delta));
 		my $value=$hash->{helper}->{elapsed}+$delta;
+		HomeConnect_FileLog($hash,"Elapsed:".$value);
 		HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Option.ElapsedProgramTime", $value . " seconds",1 );
 		HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Option.ElapsedProgramTimeHHMM", HomeConnect_ConvertSeconds($value) ,1 );
 	} else {
@@ -1854,6 +1881,7 @@ sub HomeConnect_CheckState($) {
 		#Track ElapsedProgramTime for all appliances - even if not provided
 		$hash->{helper}->{etime}=int(gettimeofday()); #Remember Timestamp of last update
 		$hash->{helper}->{elapsed}=0;
+		$hash->{helper}->{stateupdate}=1;
 	}
   }
   if ( $operationState =~ /Pause/ ) {
@@ -2529,7 +2557,6 @@ sub HomeConnect_ReadingsUpdate($$$$$) {
 	my $tvalue=$nvalue;
     $tvalue =~ /\s.*/; #When translating also remove " %", " seconds", " °C" etc. to create a plain value
 	$tvalue=$HomeConnect_Translation->{DE}{$lvalue} if (defined $HomeConnect_Translation->{DE}{$lvalue});
-	print "Translate $sreading $lvalue $tvalue!\n";
 	#In case user wants the program name, try that as well:
 	$tvalue=$hash->{data}->{trans}->{$nvalue} if (defined( $hash->{data}->{trans}->{$nvalue}));
 	$tvalue = decode_utf8($tvalue) if $unicodeEncoding;
@@ -2577,6 +2604,14 @@ sub HomeConnect_Attr(@) {
     } else {
       fhem( "delete $name\_log" );
     }
+  } elsif ($attrName eq 'stateUpdate') {
+	 return if !$attrVal;
+	 $attrVal=~/(\d+)/;
+	 my $val=$1;
+	 return "Please enter an integer value" if ($val != int($val));
+	 return "Do not set <60s as this is likely to hit the rate limit" if ($val < 60);
+	 return "Choose a smaller number for reasonable ipdates" if ($val>10000);
+	 $hash->{helper}->{stateupdate}=1 if (ReadingsVal($name,"state",0) eq "run");
   }
 
   return undef;
@@ -2739,6 +2774,10 @@ sub HomeConnect_State($$$$) {			#reload readings at FHEM start
 			<a id="HomeConnect-get-Settings"></a>
 			Retrieve the available general settings, e.g. things like "ChildLock". It is recommended that you device is turned on when your query this, though especially newer devices will also return data when switched off or in standby.<br>
 			</li>
+	<li><b>get Status</b><br>
+			<a id="HomeConnect-get-Status"></a>
+			Retrieve some general status readings. These includes things like DoorState, OperationState, RemoteControlStartAllowed... depending on the device. It is recommended that you device is turned on when your query this, though especially newer devices will also return data when switched off or in standby.<br>
+			</li>
 	<li><b>get Programs</b><br>
 			<a id="HomeConnect-get-Programs"></a>
 			Retrieve the list of available programs, e.g. things like "Eco50","Cotton" etc. It is recommended that you device is turned on when your query this, though especially newer devices will also return data when switched off or in standby.<br>
@@ -2747,14 +2786,24 @@ sub HomeConnect_State($$$$) {			#reload readings at FHEM start
 			<a id="HomeConnect-get-ProgramOptions"></a>
 			Retrieve the list of program specific options for the currently selected program. Your device should be switched on and set to the appropriate program to make this work properly.<br>
 			</li>
+	<li><b>get ProgramStatus</b><br>
+			<a id="HomeConnect-get-ProgramStatus"></a>
+			Retrieve the list of program specific status information of the selected/running program.<br>
+			</li>
   </ul>
   <a id="HomeConnect-attr"></a>
   <h4>Attributes</h4>
   <ul>
 	<li><b>updateTimer &lt;Integer&gt;</b><br>
 			<a id="HomeConnect-attr-updateTimer"></a>
-			Define how often checks are executed - default is 10 seconds.<br>
+			Define how often FHEM checks for new events and updates readings - default is 5 seconds.<br>
 			</li>
+	<li><b>stateUpdate &lt;Integer&gt;</b><br>
+			<a id="HomeConnect-attr-stateUpdate"></a>
+			As some readings (e.g ProcessPhase) are not sent via the event channel due to API restrictions, this attribute defines how often FHEM would poll the current program status while <b>running</b> (equal to "get ProgramStatus"). Default is 0 seconds (=off).<br>
+			Note that the API has a rate limit of 1000 requests a day. That may sound a lot, but FHEM is already doing a signficant number of requests in the background. If this is set to 60s you will already "waste" around 200 for a typical Eco Dishwasher run. If you have more devices and run them several times a day, you will likely already hit the limit.<br>
+			A value of 300 (5 minutes) should typically be safe, but only use this if you really depend on readings you don't get by events.
+			</li>			
 	<li><b>namePrefix &lt;Integer&gt;</b><br>
 			<a id="HomeConnect-attr-namePrefix"></a>
 			The Home Connect interface uses pretty long and complicated names for it's settings, e.g. BSH.Common.Setting.PowerState.<br>
