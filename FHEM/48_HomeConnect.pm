@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "1.23";
+my $HCversion = "1.24";
 #
 # $Id: xx $
 #
@@ -640,7 +640,6 @@ sub HomeConnect_Set($@) {
 	#-- start current program -------------------------------------------------
   }
   elsif ( $command =~ /StartX/) {
-  	return HomeConnect_SendCommand($hash,"ResumeProgram");
 	return HomeConnect_StartProgram2($hash,$a[0]);
   }
   elsif ( $command =~ /(s|S)tart(p|P)rogram/ ) {
