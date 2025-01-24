@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "1.27";
+my $HCversion = "1.28";
 #
 # $Id: xx $
 #
@@ -252,6 +252,7 @@ sub HomeConnect_ResponseInit {
   $hash->{aliasname} = $appliance->{name};
   my $type = $appliance->{type};
   $hash->{type}      = $type;
+  $hash->{model}	 = $type;
   readingsSingleUpdate($hash,".type",$type,0) if ($type); #Save type in hidden reading
   $hash->{brand}     = $appliance->{brand};
   $hash->{vib}       = $appliance->{vib};
@@ -1508,7 +1509,7 @@ sub HomeConnect_ResponseGetPrograms {
 	}
 	@optarray=@{$jhash->{data}->{selected}->{options}};
 	HomeConnect_FileLog($hash,"selected:".Dumper(@optarray));
-	HomeConnect_ProcessOptions($hash,"options","check",\@optarray);
+	HomeConnect_ProcessOptions($hash,"options",($found>0)?"check":"options",\@optarray); #Special case: No "available" programs, enter data from the selected
   } else {
 	HomeConnect_readingsSingleUpdate($hash,"BSH.Common.Setting.SelectedProgram","",1);
 	HomeConnect_FileLog($hash,"No Program selected");
@@ -1523,7 +1524,7 @@ sub HomeConnect_ResponseGetPrograms {
 	}
 	@optarray=@{$jhash->{data}->{active}->{options}};
 	HomeConnect_FileLog($hash,"active:".Dumper(@optarray));
-	HomeConnect_ProcessOptions($hash,"options","check",\@optarray);
+	HomeConnect_ProcessOptions($hash,"options",($found>0)?"check":"options",\@optarray); #Special case: No "available" programs, enter data from the selected
   } else {
 	HomeConnect_readingsSingleUpdate($hash,"BSH.Common.Setting.ActiveProgram","",1);
 	HomeConnect_FileLog($hash,"No Program active");
@@ -2359,7 +2360,7 @@ sub HomeConnect_ReadEventChannel($) {
 		    HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Status.OperationState", "BSH.Common.EnumType.OperationState.Finished" );
 		  }
 		  else {
-		    #Probably nothing special to do if value goes from Finished to Off
+		    $hash->{helper}->{status}=-1; #Update state as e.g. washer only sends ProgramFinished=Off when Door gets opened from Standby
 		  }
 		  $checkstate = 1;
 		#Temperature changes typically should update the state variables
@@ -2432,6 +2433,11 @@ sub HomeConnect_ReadEventChannel($) {
 		#Combine updates for FinishInRelative and RemainingProgramTime as both will change the Finish Time
 		elsif ( $key =~ /(FinishInRelative)|(RemainingProgramTime)/ ) {
 		  my $frel=HomeConnect_UpdateRemainingTime($hash,$value);
+		  my $est=HomeConnect_ReadingsVal($hash,"BSH.Common.Option.EstimatedTotalProgramTime",0);
+		  $est =~ s/\D+//g; #remove seconds
+		  if ($est>60) {
+			HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.StartAtHHMM", HomeConnect_ConvertSeconds($value-$est) );
+		  }
 		  if ($key =~ /RemainingProgramTime/) {
 			HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.RemainingProgramTimeHHMM", $frel );
 			delete $hash->{helper}->{rtime}; #Clear timestamps for calculating remaining/elapsed time
