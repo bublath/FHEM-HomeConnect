@@ -356,6 +356,7 @@ sub HomeConnectConnection_requestAfterToken
   $timeout=$1;
   $timeout=5 if $timeout<5;
 
+
   my $param;
   if (defined($data->{data})) {
 
@@ -397,6 +398,8 @@ sub HomeConnectConnection_requestAfterToken
       header     => { "Accept" => "application/vnd.bsh.sdk.v1+json", "Authorization" => "Bearer $token" }
     };
   }
+  my $lang = AttrVal( "global", "language", "EN" );
+  $param->{header}->{"Accept-Language"}="de-DE" if $lang eq "DE";
   HttpUtils_NonblockingGet($param);
 }
 

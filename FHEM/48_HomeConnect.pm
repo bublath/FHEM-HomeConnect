@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "1.28";
+my $HCversion = "1.29";
 #
 # $Id: xx $
 #
@@ -275,13 +275,13 @@ sub HomeConnect_ResponseInit {
   readingsSingleUpdate($hash,".prefix",$prefix,0) if ($prefix); #Save type in hidden reading
 
   if ( defined $HomeConnect_DeviceDefaults->{events} ) {
-	$hash->{events} = join( ',', @{ $HomeConnect_DeviceDefaults->{events} } );
+	$hash->{events} = join( ', ', @{ $HomeConnect_DeviceDefaults->{events} } );
   } else {
 	$hash->{events} = "";
   }
 
   my @dp=(keys %{$HomeConnect_DeviceDefaults->{programs_DE}});
-  HomeConnect_FileLog($hash,"Defaultprograms:".join(",",@dp));
+  HomeConnect_FileLog($hash,"Defaultprograms:".join(", ",@dp));
   my $int=ReadingsVal($name,".programs","");
   HomeConnect_FileLog($hash,".programs:".$int);
   #If no programs are set, try to get it from hidden reading
@@ -290,7 +290,7 @@ sub HomeConnect_ResponseInit {
 		$hash->{programs}=$int;
 	 } else {
 		 #Get from hardcoded defaults
-		$hash->{programs}=join(",",@dp);
+		$hash->{programs}=join(", ",@dp);
 	}
   }
 
@@ -512,6 +512,7 @@ sub HomeConnect_Set($@) {
   #-- programs taken from hash or empty
   my $programs = $hash->{programs};
   $programs = "" if !defined($programs);
+  $programs =~ s/, /,/g; #Remove the spaces added for better readibility
   #Translate pulldown options if translation table present
   if ($hash->{data}->{trans}) {
 	foreach my $tr (keys %{$hash->{data}->{trans}}) {
@@ -691,8 +692,6 @@ sub HomeConnect_Set($@) {
   }
   elsif ( $command =~ /(s|S)elect(ed)?Program/ ) {
 
-	#return "[HomeConnect_Set] $name: cannot select program, device powered off"
-	#  if (!$powerOn);
 	my $program = shift @a;
 
 	#-- trailing space ???
@@ -1144,7 +1143,8 @@ sub HomeConnect_StartProgram($) {
   my $program =	HomeConnect_ReadingsVal( $hash, "BSH.Common.Setting.SelectedProgram", undef );
   $program =~ s/.*Program\.//;
 
-  #-- trailing space ???
+  #Remove leading and trailing spaces
+  $program =~ s/^\s//;
   $program =~ s/\s$//;
 
   if ( !defined $program || index( $programs, $program ) == -1 ) {
@@ -1406,7 +1406,7 @@ sub HomeConnect_ResponseGetSettings {
 		HomeConnect_SetOption($hash,"settings",$opt,"values",$values) if ($values);
 		push(@list,$opt);
 	}
-	$ret=join(",",@list);
+	$ret=join(", ",@list);
   } else {
     #Only set "done" if successfull. In "offline" Error case, HandleError is setting this as that is normal for older devices
 	$hash->{helper}->{settings} = 1;
@@ -1494,6 +1494,14 @@ sub HomeConnect_ResponseGetPrograms {
   foreach my $line (@$arr) {
 	my $key = $line->{key};
 	$key = HomeConnect_FixProgram($key);
+	my $trans;
+	if ($line->{name}) {
+	  $trans=$line->{name};
+	  $trans=~ s/ /_/g; #Original names might have Spaces
+	  $trans=encode_utf8($trans) if $unicodeEncoding;
+	}
+	$hash->{data}->{trans}->{$key}=$trans if $trans;
+	$hash->{data}->{retrans}->{$trans}=$key;
 	push (@prgs,$key);
   }
   my $found=@prgs; #Count before selected/active get added
@@ -1531,7 +1539,7 @@ sub HomeConnect_ResponseGetPrograms {
   }
   if ($found>0) { #Only change programs if a list was returned
 	push (@prgs,$extraPrograms) if $extraPrograms;
-	my $programs=join(",",@prgs);
+	my $programs=join(", ",@prgs);
 	$hash->{programs} = $programs;
 	readingsSingleUpdate($hash,".programs",$programs,0); #Also remember in hidden reading
   } else {
@@ -1645,7 +1653,7 @@ sub HomeConnect_ResponseGetProgramOptions {
     $option =~ /(.*):(.*)/;
 	$hash->{data}->{options}->{$1}->{name}=$hash->{prefix}.".Option.".$1;
 	$hash->{data}->{options}->{$1}->{values}=$2;
-	$options.="," if ($options ne "");
+	$options.=", " if ($options ne "");
 	$options.=$1;
   }
   $hash->{options}=$options;
@@ -1738,6 +1746,7 @@ sub HomeConnect_ProcessOptions($$$$) {
 		HomeConnect_SetOption($hash,$area,$option,"values",$allowedvals); #typically exclusive of min/max
 		HomeConnect_SetOption($hash,$area,$option,"default",$default); #needed? Probably need to set this in the reading for preselection
 		HomeConnect_SetOption($hash,$area,$option,"exec",$line->{constraints}->{execution}); #needed?
+		HomeConnect_SetOption($hash,$area,$option,"trans",$line->{name}); #potential translation if language=DE
 
 		HomeConnect_SetOption($hash,$area,$option,"value",$svalue); #for settings
 		HomeConnect_SetOption($hash,$area,$option,"type",$stype); #for settings
@@ -1763,7 +1772,7 @@ sub HomeConnect_ProcessOptions($$$$) {
 	}
   }
   readingsEndUpdate( $hash, 1 );
-  return join(",",@list);
+  return join(", ",@list);
 }
 
 sub HomeConnect_SetOption($$$$$) {
@@ -2435,7 +2444,7 @@ sub HomeConnect_ReadEventChannel($) {
 		  my $frel=HomeConnect_UpdateRemainingTime($hash,$value);
 		  my $est=HomeConnect_ReadingsVal($hash,"BSH.Common.Option.EstimatedTotalProgramTime",0);
 		  $est =~ s/\D+//g; #remove seconds
-		  if ($est>60) {
+		  if ($est>60 and $operationState =~ /DelayedStart/) {
 			HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.StartAtHHMM", HomeConnect_ConvertSeconds($value-$est) );
 		  }
 		  if ($key =~ /RemainingProgramTime/) {

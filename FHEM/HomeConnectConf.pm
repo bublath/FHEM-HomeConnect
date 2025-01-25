@@ -334,7 +334,14 @@ $HomeConnect_DeviceDefaults{"WasherDryer"} = {
 	  "Cotton.Cotton.Cotton"                      => "Baumwolle",
 	  "LabelEU19.LabelEU19.Eco4060"               => "Eco40-60",
 	  "Rinse.Rinse.Rinse"                         => "Spülen",
-	  "Spin.Spin.SpinDrain"                       => "Schleudern/Abpumpen"
+	  "Spin.Spin.SpinDrain"                       => "Schleudern/Abpumpen",
+	  "DryingTime.MyTimeDry.MyTimeDry"           		=> "MyDryTime",
+	  "LaundryWarming.LaundryWarming.LaundryWarming"        => "Wäsche_erwärmen",
+	  "ShirtsBlouses.ShirtsBlouses.ShirtsBlouses"           => "Blusen/Hemden",
+	  "PlushToy.PlushToy.PlushToy"                       	=> "Kuscheltiere",
+	  "MoistRemove.DrumDry.DrumDry"                       	=> "Feuchtigkeit_entfernen",
+	  "DrumCleanDry.DrumCare.DrumCare"                      => "Trommelreinigung",
+	  "HygieneDryLaundry.FastHygiene.FastHygiene"           => "Fast_Hygiene"
 	}
 };
 
