@@ -357,8 +357,7 @@ sub HomeConnect_Response() {
 		my $desc=$jhash->{"error"}->{"description"};
 		if ($desc) {
 			my $key=$jhash->{"error"}->{"key"};
-			if ($key =~ /SDK.Error.UnsupportedSetting/ or 
-			    $key =~ /SDK.Error.UnsupportedOption/ or 
+			if ($key =~ /SDK.Error.Unsupported/ or 
 				$key eq "404" or 
 				$key eq "insufficient_scope") {  
 			    #Unfortunately the API returns 'SDK.Error.UnsupportedSetting' for both the API call and the setting itself
