@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "1.30";
+my $HCversion = "1.31";
 #
 # $Id: xx $
 #
@@ -2615,7 +2615,7 @@ sub HomeConnect_ReadingsUpdate($$$$$) {
   $trans =~ s/,/\$|^/g;
   $trans = "^".$trans."\$";
   $nreading =~ /.*\.(.*)$/;
-  my $sreading = $1; #Pure last part of the reading
+  my $sreading = $1 if ($reading !~ /Program/); #Pure last part of the reading except for programs
   $sreading=$reading if !$sreading; #Catch case reading has no dots
 
   if ($sreading =~ /$trans/) {
