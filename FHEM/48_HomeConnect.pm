@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "1.29";
+my $HCversion = "1.30";
 #
 # $Id: xx $
 #
@@ -795,7 +795,7 @@ sub HomeConnect_SendSetting($$$$$) {
   my $name=$hash->{NAME};
   my $def=\%{$hash->{data}->{$area}->{$command}};
   my $type=$def->{type};
-	
+  $value=$value." ".$unit if $unit;
   my $json=HomeConnect_MakeJSON($hash,$def,$value);
   return $json if ($json !~ /{.*}/); #Got error instead of JSON
   $json = "{\"data\":".$json."}"; 
@@ -826,7 +826,7 @@ sub HomeConnect_SendSetting($$$$$) {
 
 #Create a JSON for request
 sub HomeConnect_MakeJSON($$$) {
-  my ($hash,$def,$value,$dt) = @_;
+  my ($hash,$def,$value) = @_;
   
   my $type=$def->{type};
   $type="undef" if !$type; #If no type skip all conversions and checks
@@ -836,7 +836,26 @@ sub HomeConnect_MakeJSON($$$) {
 	$values =~ s/,/\$|^/g;
 	$values = "^".$values."\$";
   }
-  $value =~ s/ $def->{unit}// if $def->{unit};
+  if ($def->{unit}) {
+	$value =~ s/ (.*)//;
+	my $unit=$1?$1:$def->{unit};
+    if ($def->{unit} eq "seconds") {
+	  $value =~ /((\d+):)?(\d+)/ ;
+	  return "Expected timespec or integer for seconds" if !$3;
+	  if ($1) {
+		$value = $2 * 3600 + 60 * $3;
+	  } else {
+		$value = $3;
+		$value = $value*60 if $unit =~ /min/;
+		$value = $value*3600 if $unit =~ /hour|^h$/;
+	  } 
+	} elsif ($def->{unit} eq "gram") {
+		$value=$value*1000 if ($unit eq "kg");
+		return "Value seems too low for grams, you may want to add 'kg'" if ($value<20);
+	}
+  }
+
+  $value =~ s/ (.*)//;
   if ($type =~ /Int/ or $type =~ /Double/) {
     return "Value too small, must be >$def->{min}" if ($def->{min} and $value<$def->{min});
     return "Value too large, must be <$def->{max}" if ($def->{max} and $value>$def->{max});
@@ -1430,7 +1449,7 @@ sub HomeConnect_GetPrograms {
   $HomeConnect_DeviceDefaults=\%{$HomeConnectConf::HomeConnect_DeviceDefaults{$hash->{type}}};
 
   $hash->{helper}->{programs} = 0;
-  
+    
   #No programs with any fridges
   if ($hash->{type} =~ /(Fridge)|(Freezer)|(Refrigerator)|(Wine)/) { 
 	#Keep programs=0 so it is clear programoptions etc. won't get called as well
@@ -1453,6 +1472,15 @@ sub HomeConnect_GetPrograms {
   };
   HomeConnect_Request( $hash, $data );
   Log3 $name, 5, "[HomeConnect_GetPrograms] $name: getting programs with uri " . $data->{uri};
+
+#TEST
+  #$hash->{data}->{options}->{duration}->{name}="LaundryCare.Dryer.Option.Duration";
+  #$hash->{data}->{options}->{duration}->{unit}="seconds";
+  #$hash->{data}->{sets}->{duration}=1;
+  #$hash->{data}->{options}->{weight}->{name}="LaundryCare.Dryer.Option.Weight";
+  #$hash->{data}->{options}->{weight}->{unit}="gram";
+  #$hash->{data}->{sets}->{weight}=1;
+
   return;
 }
 
@@ -1754,7 +1782,7 @@ sub HomeConnect_ProcessOptions($$$$) {
 		#Mark Options as "set" option only when it is mentioned in "ProgramOptions"
 		if ($orgarea ne "check") {
 			$hash->{data}->{sets}->{$option}=1 if ($key !~ /Common/);
-			$hash->{data}->{sets}->{$option}=1 if ($key =~ /Duration/);	#Include some special Common keys
+			$hash->{data}->{sets}->{$option}=1 if ($key =~ /Duration|Weight/);	#Include some special Common keys
 		}
 	} 
 	
