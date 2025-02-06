@@ -3,11 +3,12 @@
 
 # $Id: $
 
-        Version 1.1
+        Version 1.2
 
 =head1 SYNOPSIS
         Bosch Siemens Home Connect Modul for FHEM
         contributed by Stefan Willmeroth 09/2016
+		updated by Adimarantis 02/2025
 
 =head1 DESCRIPTION
         48_HomeConnectConnection keeps the OAuth token needed by devices defined by
@@ -23,7 +24,6 @@ use strict;
 use warnings;
 use JSON;
 use URI::Escape;
-use Switch;
 use Data::Dumper; #debugging
 
 use vars qw($readingFnAttributes);
@@ -636,7 +636,7 @@ sub HomeConnectConnection_ResponseAutocreateDevices
     <ul>
       <li>Define a static CSRF Token in FHEM using a command like <code>attr WEB.* csrfToken myToken123</code>
       <li>Create a developer account at <a href="https://developer.home-connect.com/">Home Connect for Developers</a></li>
-      <li>Update your account to an <b>Advanced Account</b></li>
+      <li>As type use "(Open Source) Community"</li>
       <li>Create your Application under "My Applications", the REDIRECT-URL must be pointing to your local FHEM installation, e.g.<br/>
       <code>http://fhem.local:8083/fhem?cmd.Test=set%20hcconn%20auth%20&fwcsrf=myToken123</code><br/></li>
       <li>Make sure that "fhem.local" is replaced with a usable hostname for your FHEM. Setting it to an IP address is reported to fail. 

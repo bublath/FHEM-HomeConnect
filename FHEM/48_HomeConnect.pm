@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "1.31";
+my $HCversion = "2.0";
 #
 # $Id: xx $
 #
@@ -35,7 +35,6 @@ package main;
 use strict;
 use warnings;
 use JSON;
-use Switch;
 use Scalar::Util qw(looks_like_number);
 use Encode;
 
@@ -62,6 +61,7 @@ sub HomeConnect_Initialize($) {
   $hash->{StateFn} = "HomeConnect_State";
   $hash->{NotifyFn} = "HomeConnect_Notify";
   $hash->{GetFn}  = "HomeConnect_Get";
+  #$hash->{FW_detailFn}  = "HomeConnect_Detail";
   $hash->{AttrList} =
 	  "disable:0,1 "
 	. "namePrefix:0,1 "
@@ -2390,7 +2390,7 @@ sub HomeConnect_ReadEventChannel($) {
 		
 		Log3 $name, 4, "[HomeConnect_ReadEventChannel] $name: $key = $value";
 		#-- special keys
-		if ( defined($hash->{data}->{finished}) and $key =~ /$hash->{data}->{finished}/) {
+		if (( defined($hash->{data}->{finished}) and $key =~ /$hash->{data}->{finished}/) or $key =~ /ProgramFinished/) {
 		  if ( $value =~ /Present/ and $operationState =~ /Run/ ) {
 		    #Dryer will not go into Finished state if WrinkleGuard is active - then we get "DryingProcessFinished" and "ProgramFinished" is sent only after end of WrinkleGuard 
 		    HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Status.OperationState", "BSH.Common.EnumType.OperationState.Finished" );
@@ -2735,6 +2735,11 @@ sub HomeConnect_Notify($$) {
 
 sub HomeConnect_State($$$$) {			#reload readings at FHEM start
 	my ($hash, $tim, $sname, $sval) = @_;
+	return undef;
+}
+
+sub HomeConnect_Detail {
+	my ($FW_wname, $name, $room, $pageHash) = @_;
 	return undef;
 }
 
