@@ -2628,7 +2628,7 @@ sub HomeConnect_ReadingsUpdate($$$$$) {
   $nreading =~ /.*\.(.*)$/;
   my $sreading = $1;
   $sreading=$reading if !$sreading; #Catch case reading has no dots
-  $nvalue=$value if ($reading =~ /SelectedProgram|ActiveProgram/ and ($value=~tr/././)==1); #Some programs have 1 dot. Preserve in case already cut to e.g. Beverage.Coffee
+  $nvalue=$value if ($reading =~ /SelectedProgram|ActiveProgram/ and $value and ($value=~tr/././)==1); #Some programs have 1 dot. Preserve in case already cut to e.g. Beverage.Coffee
 
   if ($sreading =~ /$trans/) {
 	my $lvalue=lc $nvalue;
