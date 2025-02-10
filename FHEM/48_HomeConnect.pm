@@ -2452,7 +2452,7 @@ sub HomeConnect_ReadEventChannel($) {
 			HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Setting.ActiveProgram", undef );
 		  }
 		  $value = HomeConnect_FixProgram($value);
-		  if (!($hash->{programs} =~ /$key/)) {
+		  if (!($hash->{programs} =~ /$value/)) {
 			HomeConnect_FileLog($hash,"Unknown selected program $key - trigger GetPrograms");			
 			$hash->{helper}->{programs} = -1;
 		  }
