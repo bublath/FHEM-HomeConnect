@@ -2067,7 +2067,7 @@ sub HomeConnect_CheckAlerts($) {
 			#If alarm older than 24h we likely missed the event -> switch off
 			readingsBulkUpdate( $hash,$fullreading,"Off");
 			$alarms =~ s/$alarm//g;
-			$alarms =~ s/^,|,$|,,/,/g; #Clean potential leftover "," after removal
+			$alarms =~ s/^,|,$|,(,)/$1/g; #Clean potential leftover "," after removal
 			next;
 		}	
 		#If alarm not yet in list - add it
@@ -2078,7 +2078,7 @@ sub HomeConnect_CheckAlerts($) {
 	  } else {
 		#Remove alarm after it is over
 	    $alarms =~ s/$alarm//g;
-		$alarms =~ s/^,|,$|,,/,/g; #Clean potential leftover "," after removal
+		$alarms =~ s/^,|,$|,(,)/$1/g; #Clean potential leftover "," after removal
 	  }
 	  if ("$alarms" ne "$calarms") { 
 		#Use Bulkupdate as this is called from within an readingsBegin/EndUpdate
