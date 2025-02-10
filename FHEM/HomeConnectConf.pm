@@ -111,7 +111,7 @@ use vars qw(%HomeConnect_DeviceDefaults);
 
 %HomeConnect_Iconmap = (
   "Dishwasher"    => "scene_dishwasher",
-  "Hob"           => "scene_cooktop",
+  "Hob"           => "scene_cooking",
   "Oven"          => "scene_baking_oven",
   "FridgeFreezer" => "scene_wine_cellar",
   "Washer"        => "scene_washing_machine",

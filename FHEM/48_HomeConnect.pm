@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "2.0";
+my $HCversion = "2.1";
 #
 # $Id: xx $
 #
@@ -1119,7 +1119,7 @@ sub HomeConnect_DelayTimer($$$$) {
 	$option="FinishInRelative";
 	$val=$endinrelative;
   }
-  #TODO new method
+
   if ($operationState =~ /DelayedStart/) {
     HomeConnect_FileLog($hash, "Device already delayed, update $option to $val");
 	my $json=HomeConnect_MakeJSON($hash,\%{$hash->{data}->{options}->{$option}},$val);
@@ -1527,8 +1527,10 @@ sub HomeConnect_ResponseGetPrograms {
 	  $trans=~ s/ /_/g; #Original names might have Spaces
 	  $trans=encode_utf8($trans) if $unicodeEncoding;
 	}
-	$hash->{data}->{trans}->{$key}=$trans if $trans;
-	$hash->{data}->{retrans}->{$trans}=$key;
+	if ($trans) {
+		$hash->{data}->{trans}->{$key}=$trans;
+		$hash->{data}->{retrans}->{$trans}=$key;
+	}
 	push (@prgs,$key);
   }
   my $found=@prgs; #Count before selected/active get added
@@ -1787,6 +1789,7 @@ sub HomeConnect_ProcessOptions($$$$) {
 	
 	#Also put this into readings
 	if ($svalue) {
+		my $pvalue=HomeConnect_ReadingsVal($hash,$key,"");
 		HomeConnect_readingsBulkUpdate( $hash, $key, $svalue.($unit?" ".$unit:"") );
 		#Some special key updates
 		if ($option =~ /RemainingProgramTime$/) {
@@ -2058,6 +2061,15 @@ sub HomeConnect_CheckAlerts($) {
 	my $alarms=ReadingsVal($hash->{NAME},"alarms","");
 	my $calarms=$alarms;
 	  if ( $value =~ /Present/ ) {
+		my $fullreading=HomeConnect_ReplaceReading($hash,$hash->{prefix}.".Event.".$alarm);
+		my $alarmage=ReadingsAge($hash->{NAME},$fullreading,0);
+		if ($alarmage>86400) {
+			#If alarm older than 24h we likely missed the event -> switch off
+			readingsBulkUpdate( $hash,$fullreading,"Off");
+			$alarms =~ s/$alarm//g;
+			$alarms =~ s/^,|,$|,,/,/g; #Clean potential leftover "," after removal
+			next;
+		}	
 		#If alarm not yet in list - add it
 		if ( $alarms !~ $alarm ) {
 			$alarms .= "," if $alarms ne "";
@@ -2066,7 +2078,7 @@ sub HomeConnect_CheckAlerts($) {
 	  } else {
 		#Remove alarm after it is over
 	    $alarms =~ s/$alarm//g;
-		$alarms =~ s/,,/,/g; #Clean potential double "," after removal
+		$alarms =~ s/^,|,$|,,/,/g; #Clean potential leftover "," after removal
 	  }
 	  if ("$alarms" ne "$calarms") { 
 		#Use Bulkupdate as this is called from within an readingsBegin/EndUpdate
@@ -2112,7 +2124,7 @@ sub HomeConnect_ResponseUpdateStatus {
   HomeConnect_ParseKeys($hash,"status",$json);
 
   $hash->{helper}->{status} = 1;
-
+  HomeConnect_CheckState($hash); #Important Readings like DoorState or OperationState might have changed
   $hash->{STATE}="Ready";
 }
 
@@ -2517,6 +2529,7 @@ sub HomeConnect_ReadEventChannel($) {
 		}
 		HomeConnect_readingsBulkUpdate( $hash, $key, $value . ( ( defined $unit ) ? " " . $unit : "" ) ) if !$skipupdate;
 	  }
+	  readingsEndUpdate( $hash, 1 );
 	}
 	elsif ( $event eq "DISCONNECTED" ) {
 	  my $state = "Offline";
@@ -2539,7 +2552,6 @@ sub HomeConnect_ReadEventChannel($) {
 	  Log3 $name, 4,
 		"[HomeConnect_ReadEventChannel] $name: Unknown event $inputbuf";
 	}
-	readingsEndUpdate( $hash, 1 );
   }
 
   HomeConnect_CheckState($hash) if $checkstate;
@@ -2614,8 +2626,9 @@ sub HomeConnect_ReadingsUpdate($$$$$) {
   $trans =~ s/,/\$|^/g;
   $trans = "^".$trans."\$";
   $nreading =~ /.*\.(.*)$/;
-  my $sreading = $1 if ($reading !~ /Program/); #Pure last part of the reading except for programs
+  my $sreading = $1;
   $sreading=$reading if !$sreading; #Catch case reading has no dots
+  $nvalue=$value if ($reading =~ /SelectedProgram|ActiveProgram/ and ($value=~tr/././)==1); #Some programs have 1 dot. Preserve in case already cut to e.g. Beverage.Coffee
 
   if ($sreading =~ /$trans/) {
 	my $lvalue=lc $nvalue;
