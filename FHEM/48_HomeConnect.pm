@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "2.1";
+my $HCversion = "2.2";
 #
 # $Id: xx $
 #
@@ -626,7 +626,7 @@ sub HomeConnect_Set($@) {
   {
 	#return "[HomeConnect] $name: cannot set delay timer, device powered off"
 	#  if (!$powerOn);
-	HomeConnect_DelayTimer( $hash, $command, $a[0], $a[1] );
+	return HomeConnect_DelayTimer( $hash, $command, $a[0], $a[1] );
 
 	#-- AlarmClock -----------------------------------------------------
   }
@@ -840,7 +840,7 @@ sub HomeConnect_MakeJSON($$$) {
 	my $unit=$1?$1:$def->{unit};
     if ($def->{unit} eq "seconds") {
 	  $value =~ /((\d+):)?(\d+)/ ;
-	  return "Expected timespec or integer for seconds" if !$3;
+	  return "Expected timespec or integer for seconds" if !defined($3);
 	  if ($1) {
 		$value = $2 * 3600 + 60 * $3;
 	  } else {
@@ -1034,21 +1034,6 @@ sub HomeConnect_DelayTimer($$$$) {
   HomeConnect_FileLog($hash,"$command $value $delta");
 
   my $operationState = HomeConnect_ReadingsVal( $hash, "BSH.Common.Status.OperationState", "" );
-  if ($operationState =~ /DISABLE-DelayedStart/) {
-	  #if device is already in DelayedStart, program needs to be stopped first
-	  my $data = {
-	  callback => \&HomeConnect_Response,
-	  uri      => "/api/homeappliances/$haId/programs/active"
-	  };
-	  $hash->{helper}->{autostart}=1;
-	  HomeConnectConnection_delrequest( $hash, $data );
-	  HomeConnect_FileLog($hash,"Stopping current program to restart with delay $command $value");
-	  #Remember the desired setting as "stopProgram" will reset StartInRelative to 0
-	  #Once stop is confirmed (opeationState == Ready) the ReadEventChannel will set autostart to 2 and call this function again
-	  $start="start"; #if already in delayedstart, start again right away
-	  $hash->{helper}->{delay}=join(",",$command,$value,$start);
-	  return;
-  }
 
   #-- determine start and end
   my ( $min,             $hour ) = ( localtime() )[ 1, 2 ];
@@ -1123,6 +1108,7 @@ sub HomeConnect_DelayTimer($$$$) {
   if ($operationState =~ /DelayedStart/) {
     HomeConnect_FileLog($hash, "Device already delayed, update $option to $val");
 	my $json=HomeConnect_MakeJSON($hash,\%{$hash->{data}->{options}->{$option}},$val);
+	return $json if ($json !~ /{.*}/); #Got error instead of JSON
 	$json = "{\"data\":".$json."}"; 
 	my $data = {
 	  callback => \&HomeConnect_Response,
@@ -1135,6 +1121,7 @@ sub HomeConnect_DelayTimer($$$$) {
   } else {
 	HomeConnect_StartProgram($hash) if (defined $start and $start eq "start");
   }
+  return;
 }
 
 ###############################################################################
@@ -1150,8 +1137,7 @@ sub HomeConnect_StartProgram($) {
   my $ret;
 
   my $programPrefix = $hash->{prefix} . ".Program.";
-  $hash->{helper}->{autostart}=0;
-  
+
   my $programs = $hash->{programs};
   if ( !defined($programs) || $programs eq "" ) {
 	$ret = "[HomeConnect_StartProgram] $name: Cannot start, list of programs empty";
@@ -1176,16 +1162,14 @@ sub HomeConnect_StartProgram($) {
 
   foreach my $key ( keys %{ $hash->{data}->{options} } ) {
 
-#Verstehe ich das richtig das nur optionen ohne liveupdate beim start program übertragen werden?
-#Also nur die delayedstart sachen?
-
-#-- liveupdate? Then this must not be included in the start code
-#   TODO: REALLY ?? NO, WRONG !! StartInRelative can no longer be set separately!
-	next
-	  if ( defined( $hash->{data}->{options}->{$key}->{update} )
+	next if ( defined( $hash->{data}->{options}->{$key}->{update} )
 	  && $hash->{data}->{options}->{$key}->{update} eq "On" );
+
 	$enable=$hash->{data}->{sets}->{$key};
 	my $value = HomeConnect_ReadingsVal( $hash, $hash->{data}->{options}->{$key}->{name}, "" );
+
+#Is it necessary to submit any options at all? Got "UnsupportedOption" (for SpeedPerfect) when starting my washer. Disable in general for now except test for delayed start
+	$enable=undef;
 
 	#-- safeguard against missing delay and enable delayed start despite missing in "sets" list
 	$enable=1 
@@ -1263,7 +1247,7 @@ sub HomeConnect_Timer {
   my $name = $hash->{NAME};
 
   my $updateTimer = AttrVal( $name, "updateTimer", 5 );
-  
+
   if ( defined $hash->{conn} and AttrVal( $name, "disable", 0 ) == 0 ) {
 	HomeConnect_ReadEventChannel($hash);
   }
@@ -1458,11 +1442,6 @@ sub HomeConnect_GetPrograms {
 #-- we do not get a list of programs if a program is active, so we just use the active program name
   my $operationState = ReadingsVal( $name, "BSH.Common.Status.OperationState", "" );
 
-  if ( $operationState =~ /(Active)|(DelayedStart)|(Run)|(Pause)/ ) {
-  #TEST: Why? we now get selected/active infos as well
-	  #return; #Do not try to get programs at all in these cases
-  } 
-
   #-- Request available programs
   delete $hash->{data}->{sets}; #Reset the value list, as GetPrograms creates the "master" list
   my $data = {
@@ -1471,14 +1450,6 @@ sub HomeConnect_GetPrograms {
   };
   HomeConnect_Request( $hash, $data );
   Log3 $name, 5, "[HomeConnect_GetPrograms] $name: getting programs with uri " . $data->{uri};
-
-#TEST
-  #$hash->{data}->{options}->{duration}->{name}="LaundryCare.Dryer.Option.Duration";
-  #$hash->{data}->{options}->{duration}->{unit}="seconds";
-  #$hash->{data}->{sets}->{duration}=1;
-  #$hash->{data}->{options}->{weight}->{name}="LaundryCare.Dryer.Option.Weight";
-  #$hash->{data}->{options}->{weight}->{unit}="gram";
-  #$hash->{data}->{sets}->{weight}=1;
 
   return;
 }
@@ -1576,6 +1547,7 @@ sub HomeConnect_ResponseGetPrograms {
 	$msg = "[HomeConnect_ResponseGetPrograms] $name: no programs found";
 	readingsSingleUpdate( $hash, "lastErr", "No programs found", 1 );
 	Log3 $name, 1, $msg;
+    $hash->{helper}->{programs} = 2; #Remember that program list was incomplete -> retry later
 	return $msg;
   }
   $hash->{helper}->{programs} = 1;
@@ -1625,9 +1597,11 @@ sub HomeConnect_GetProgramOptions {
 	}
   }
   my $aprogram = HomeConnect_ReadingsVal( $hash, "BSH.Common.Setting.ActiveProgram", "" );
-  $query="active/$programPrefix$aprogram" if ($aprogram ne "" and $operationState !~ /Run|Finished|Pause/);
+  $query="active/options" if ($operationState =~ /Run|Finished|Pause/); #Use "active" even if ActiveProgram is not present when running
 
-  $query="active/options" if ($query eq "" and $operationState =~ /Run|Finished|Pause/); #Use "active" even if ActiveProgram is not present when running
+# "allowedvalues" are only included with "available/programname" and is missing with "active/options" or "selected/options" - however not available when a program is running
+# "selected/programname" causes an error (resource not found)
+# "active/programname" causes an 404 error
 
   if ( $query eq "") {
 	$msg="No programs selected or active";
@@ -1635,8 +1609,7 @@ sub HomeConnect_GetProgramOptions {
 	Log3 $name, 1, $msg;
 	return $msg;
   }
-
-
+ 
   HomeConnect_FileLog($hash, "GetProgramOptions: $query");
 
   my $data = {
@@ -1928,6 +1901,7 @@ sub HomeConnect_CheckState($) {
 	$tim1  =~ s/ \D+//g; # remove seconds
 	$tim2  =~ s/ \D+//g; # remove seconds
 	$temp  =~ s/ \D+//g; # remove °C
+	$temp = 0 if $temp eq "";
 	$temp = int($temp); #Remove decimals
 	$tim = HomeConnect_ConvertSeconds($tim2) if $tim and $tim2>0; #Default is elapsed
 	$tim = HomeConnect_ConvertSeconds($tim1) if $tim1 and $tim1>0; #Alternative Remaining
@@ -2037,12 +2011,6 @@ sub HomeConnect_CheckState($) {
   HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Status.OperationState",  $operationState ) if $operationState ne $orgOpSt;
   readingsEndUpdate( $hash, 1 );
 
-  #If stopProgram is done, retry to set delay
-  if ($hash->{helper}->{autostart} and $hash->{helper}->{autostart}==2 and $hash->{helper}->{delay}) {
-	  my @args=split(",",$hash->{helper}->{delay});
-	  HomeConnect_DelayTimer($hash,$args[0],$args[1],$args[2]);
-	  delete $hash->{helper}->{delay};
-  }
 }
 
 #Check the Events for active alerts and store a summary in alerts and alertCount
@@ -2445,8 +2413,6 @@ sub HomeConnect_ReadEventChannel($) {
 		} elsif ( $key =~ /SelectedProgram/ ) {
 		  #Need to get program options when changing program except on power off where this gets set to undef
 		  $hash->{helper}->{options} = -1 if $value;
-		  #This is the case, when a program gets stopped to set a different delay. Set the previous active program instead of the "default"
-		  $value=$hash->{helper}->{ActiveProgram} if ($hash->{helper}->{ActiveProgram} and $hash->{helper}->{autostart});
 		  #If Active Program is set when a new program is selected and operationState is not running, this probably is a error
 		  if ($operationState =~ /Ready|Inactive/ and HomeConnect_ReadingsVal( $hash, "BSH.Common.Setting.ActiveProgram", "" ) ne "") {
 			HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Setting.ActiveProgram", undef );
@@ -2519,11 +2485,9 @@ sub HomeConnect_ReadEventChannel($) {
 		} elsif ( $key =~ /(DoorState)|(ProgramProgress)/ ) {
 		  $checkstate = 1;
 		} elsif ( $key =~ /(OperationState)/ ) {
-		  if (defined $value) {
-			#When trying to change delayedStart, we need to wait until stopProgram is finished before continuing
-		    $hash->{helper}->{autostart}=2 if (defined $hash->{helper}->{autostart} and $hash->{helper}->{autostart} == 1 and $value=~/Ready/);
-		  }
 		  $checkstate = 1;
+		  #Check if get programs was incomplete (e.g. because device was running or offline during FHEM startup) and trigger again if device becomes Ready
+		  $hash->{helper}->{programs} = -1 if ($hash->{helper}->{programs} == 2 and $value =~ /Ready/);
 		}
 		elsif ( $key =~ /RemoteControlStartAllowed/ ) {
 		}
@@ -2547,6 +2511,7 @@ sub HomeConnect_ReadEventChannel($) {
 	  Log3 $name, 4, "[HomeConnect_ReadEventChannel] $name: keep alive $id";
 	}
 	else {
+	  $event="none" if !$event;
 	  Log3 $name, 4,
 		"[HomeConnect_ReadEventChannel] $name: Unknown event $event";
 	  Log3 $name, 4,

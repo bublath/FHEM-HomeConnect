@@ -1,4 +1,11 @@
-Jan 13, 2024
+Feb 13, 2025
+	DelayedStart=0 possible now
+	Removed passing options to StartProgram as this can cause problems
+	Cleanup of some leftover, disabled code
+	Option to disable DE translations in HomeConnectConnection
+	Delayed GetPrograms when failing during startup (e.g. if appliance was off)
+
+Jan 13, 2025
 	Separated configurations into HomeConnectConf.pm
 	timeout attribute for HomeConnectConnection
 

@@ -45,6 +45,7 @@ sub HomeConnectConnection_Initialize($)
   $hash->{AttrList}     = "disable:0,1 " .
 						  "timeout " .
                           "accessScope " .
+						  "translation:0,1 " .
                           $readingFnAttributes;
 }
 
@@ -399,7 +400,8 @@ sub HomeConnectConnection_requestAfterToken
     };
   }
   my $lang = AttrVal( "global", "language", "EN" );
-  $param->{header}->{"Accept-Language"}="de-DE" if $lang eq "DE";
+  my $trans=AttrVal($conn,"translation",1);
+  $param->{header}->{"Accept-Language"}="de-DE" if ($lang eq "DE" and $trans == 1);
   HttpUtils_NonblockingGet($param);
 }
 
