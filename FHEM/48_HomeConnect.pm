@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "2.2";
+my $HCversion = "2.3";
 #
 # $Id: xx $
 #
@@ -467,6 +467,7 @@ sub HomeConnect_Set($@) {
   my $excludes = $attr{$name}{"excludeSettings"};
   $excludes="" if !defined $excludes;
   $excludes =~ s/,/\$|^/g;
+  $excludes =~ s/\s//g; #Remove potential whitespaces
   $excludes = "^".$excludes."\$";
 
   my $pwchoice="";
@@ -1848,6 +1849,9 @@ sub HomeConnect_CheckState($) {
   $pct =~ s/ \%.*//;
   #My Washer sets pct to 100 some time ahead of Finished
   #$operationState = "Finished" if ( $pct == 100 ); #Some devices don't put a proper finish message when done
+
+  #My Washer does not always update operationState correctly when waking up for StartProgram -> query setting on inconsistent state
+  $hash->{helper}->{settings} = -1 if ($pct>0 and $pct<100 and $operationState eq "Inactive");  
   
   my $tim = HomeConnect_ReadingsVal( $hash,	"BSH.Common.Option.RemainingProgramTimeHHMM", "0:00" );
   my $sta = HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.StartAtHHMM", "0:00" );
@@ -1914,7 +1918,7 @@ sub HomeConnect_CheckState($) {
 	$state  = "run";
 	$state1 = "$program";
 	$state2 = "$tim";
-	if ($currentstate ne $state and $program ne "") {
+	if ($currentstate ne $state) {
 		#state changed into running - now get the program options that might only be valid during run (e.g. SilenceOnDemand)
 		$hash->{helper}->{options} = -1 if ($type !~ /Coffee/); #Except for coffemakers where this would create errors
 		HomeConnect_FileLog($hash,"request updatePO as $currentstate != $state and program=$program");
@@ -2331,6 +2335,8 @@ sub HomeConnect_ReadEventChannel($) {
 	  return undef;
 	}
 	
+	$event="none" if (!$event);
+	
 	if ($http) {
 	  if ( $http ne "200" ) {
 		Log3 $name, 2, "[HomeConnect_ReadEventChannel] $name: event channel received an http error: $_";
@@ -2377,6 +2383,7 @@ sub HomeConnect_ReadEventChannel($) {
 		  }
 		  else {
 		    $hash->{helper}->{status}=-1; #Update state as e.g. washer only sends ProgramFinished=Off when Door gets opened from Standby
+		    $hash->{helper}->{settings}=-1; 
 		  }
 		  $checkstate = 1;
 		#Temperature changes typically should update the state variables
@@ -2391,6 +2398,8 @@ sub HomeConnect_ReadEventChannel($) {
 		} elsif ( $key =~ /ActiveProgram/ ) {
 		  #Remember previous active program
 		  my $prev=HomeConnect_ReadingsVal( $hash, "BSH.Common.Setting.ActiveProgram","");
+		  $hash->{helper}->{settings} = -1 if $prev eq ""; #Another Workaround for detecting Washer got emptied after it went to standby
+		  $hash->{helper}->{status} = -1; #Workaround for Washer not detecting it started from autostart
 		  $hash->{helper}->{ActiveProgram}=$prev if $prev; #ActiveProgram might become empty (reason not understood)
 		  $checkstate=1;
 		} elsif ( $key =~ /PowerState/ ) {
