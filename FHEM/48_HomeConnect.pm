@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "2.3";
+my $HCversion = "2.4";
 #
 # $Id: xx $
 #
@@ -381,9 +381,10 @@ sub HomeConnect_AddExclude($$) {
   my ($name,$exclude) = @_;
   my $exAttr=$attr{$name}{"excludeSettings"};
   if (defined $exAttr and $exAttr ne "") {
-	$exAttr =~ s/,/\$|^/m;
+	$exAttr =~ s/,/\$|^/g;
+	$exAttr =~ s/\s//g; #Remove potential whitespaces
 	$exAttr = "^".$exAttr."\$";
-	$attr{$name}{"excludeSettings"}.=",".$exclude if ($exAttr !~ /$exclude/);
+	$attr{$name}{"excludeSettings"}.=",".$exclude if ($exclude !~ /$exAttr/);
   } else {
 	$attr{$name}{"excludeSettings"}=$exclude;
   }
