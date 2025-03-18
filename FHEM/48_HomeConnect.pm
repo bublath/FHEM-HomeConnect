@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "2.4";
+my $HCversion = "2.5";
 #
 # $Id: xx $
 #
@@ -1825,11 +1825,19 @@ sub HomeConnect_CheckState($) {
   my $sprogram = HomeConnect_ReadingsVal( $hash, "BSH.Common.Setting.SelectedProgram", "" );
   my $remoteStartAllowed=HomeConnect_ReadingsVal($hash,"BSH.Common.Status.RemoteControlStartAllowed","Off");
   $remoteStartAllowed=($remoteStartAllowed eq "On"?1:0);
-  
-  #-- selected program missing
-  if ( $sprogram eq "" && $operationState eq "Run" && $aprogram ne "" ) {
-	$sprogram = $aprogram;
-	HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Setting.SelectedProgram", $sprogram, 1 );
+
+  readingsBeginUpdate($hash);  
+
+  #-- Sometimes either selected or active program is not updated in "run" state - try to update
+  if ( $operationState eq "Run" ) {
+	if ($sprogram eq "" and $aprogram ne "") {
+	  $sprogram = $aprogram; 
+	  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Setting.SelectedProgram", $sprogram);
+	}
+	if ($aprogram eq "" and $sprogram ne "") {
+	  $aprogram = $sprogram;
+	  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Setting.ActiveProgram", $aprogram);
+	}
   }
 
   #-- in running state both are identical now
@@ -1874,8 +1882,8 @@ sub HomeConnect_CheckState($) {
 			my $delta=int(gettimeofday())-int($hash->{helper}->{etime});
 			my $value=$hash->{helper}->{elapsed}+$delta;
 			HomeConnect_FileLog($hash,"Elapsed:".$value);
-			HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Option.ElapsedProgramTime", $value . " seconds",1 );
-			HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Option.ElapsedProgramTimeHHMM", HomeConnect_ConvertSeconds($value) ,1 );
+			HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.ElapsedProgramTime", $value . " seconds");
+			HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.ElapsedProgramTimeHHMM", HomeConnect_ConvertSeconds($value));
 		} else {
 			$hash->{helper}->{etime}=int(gettimeofday());
 		}
@@ -1887,8 +1895,8 @@ sub HomeConnect_CheckState($) {
 			my $delta=int(gettimeofday())-int($hash->{helper}->{rtime});
 			my $value=$hash->{helper}->{remaining}-$delta;
 			my $rstr=HomeConnect_UpdateRemainingTime($hash,$value);
-			HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Option.RemainingProgramTimeHHMM", $rstr,1 );
-			HomeConnect_readingsSingleUpdate( $hash, "BSH.Common.Option.RemainingProgramTime", $value . " seconds",1 );
+			HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.RemainingProgramTimeHHMM", $rstr);
+			HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.RemainingProgramTime", $value . " seconds");
 		} else {
 			$hash->{helper}->{rtime}=int(gettimeofday());
 		}
@@ -1914,7 +1922,6 @@ sub HomeConnect_CheckState($) {
 	$tim .= $temp." °C" if $temp>0;
   }
 
-  readingsBeginUpdate($hash);  
   if ( $operationState =~ /(Run)/ ) {
 	$state  = "run";
 	$state1 = "$program";
@@ -2536,6 +2543,7 @@ sub HomeConnect_ReadEventChannel($) {
 sub HomeConnect_UpdateRemainingTime($$) {
 	my ($hash,$value) = @_;
 	$value =~ s/\D+//g; # remove seconds
+	return 0 if $value eq "";
 	my $h    = int( $value / 3600 );
 	my $m    = ceil( ( $value - 3600 * $h ) / 60 );
 	my $frel = sprintf( "%d:%02d", $h, $m );
@@ -2599,6 +2607,7 @@ sub HomeConnect_ReadingsUpdate($$$$$) {
   #Translation: if reading is in list, translate the value and create a new reading with "tr_" prefix
   my $trans = AttrVal ( $hash->{NAME}, "translate", "");
   $trans =~ s/,/\$|^/g;
+  $trans =~ s/\s//g; #Remove potential whitespaces
   $trans = "^".$trans."\$";
   $nreading =~ /.*\.(.*)$/;
   my $sreading = $1;
