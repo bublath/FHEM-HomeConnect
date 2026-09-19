@@ -1,3 +1,6 @@
+Sep 09, 2026
+        Fix for Event no longer being processed
+
 Feb 13, 2025
 	DelayedStart=0 possible now
 	Removed passing options to StartProgram as this can cause problems
