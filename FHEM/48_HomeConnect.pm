@@ -7,7 +7,7 @@
 # Stefan Willmeroth 09/2016
 # Major rebuild Prof. Dr. Peter A. Henning 2023
 # Major re-rebuild by Adimarantis 2024/2025
-my $HCversion = "2.5";
+my $HCversion = "2.6";
 #
 # $Id: xx $
 #
@@ -2316,17 +2316,18 @@ sub HomeConnect_ReadEventChannel($) {
 	#--
 	my $len = sysread( $hash->{conn}, $inputbuf, 32768 );
 
-	Log3 $name, 5, "[HomeConnect_ReadEventChannel] $name: event channel len:\"$len\", received:\"$inputbuf\"";
 	#-- check if something was actually read
 	if ( !defined($len)
 	  || $len == 0
 	  || !defined($inputbuf)
 	  || length($inputbuf) == 0 )
 	{
-	  Log3 $name, 5, "[HomeConnect_ReadEventChannel] $name: event channel read failed, len:\"$len\", received:\"$inputbuf\"";
-	  HomeConnect_CloseEventChannel($hash);
+	  Log3 $name, 2, "[HomeConnect_ReadEventChannel] $name: event channel read failed: no data";
+	  #Test, don't close on empty data
+	  #HomeConnect_CloseEventChannel($hash);
 	  return undef;
 	}
+	Log3 $name, 5, "[HomeConnect_ReadEventChannel] $name: event channel len:\"$len\", received:\"$inputbuf\"";
 
 	#-- reset timeout
 	$hash->{helper}->{eventChannelTimeout} = time();
@@ -2442,6 +2443,7 @@ sub HomeConnect_ReadEventChannel($) {
 		}
 		elsif ( $key =~ /StartInRelative/ ) {
 		  $value =~ s/\D+//g; # remove seconds
+		  $value = 0 if $value eq "";
 		  my $h    = int( $value / 3600 );
 		  my $m    = ceil( ( $value - 3600 * $h ) / 60 );
 		  my $tim2 = sprintf( "%d:%02d", $h, $m );
@@ -2451,6 +2453,7 @@ sub HomeConnect_ReadEventChannel($) {
 			( localtime( time + $value ) )[ 1, 2 ];
 		  my $delta = HomeConnect_ReadingsVal( $hash, "BSH.Common.Option.RemainingProgramTime", 0 );
 		  $delta =~ s/\D+//g; # remove seconds
+		  $delta = 0 if $delta eq "";
 		  #TODO: test number
 		  my ( $endmin, $endhour ) =
 			( localtime( time + $value + $delta ) )[ 1, 2 ];
@@ -2499,8 +2502,12 @@ sub HomeConnect_ReadEventChannel($) {
 
 		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.AlarmClockHHMM", $tim5 );
 		  HomeConnect_readingsBulkUpdate( $hash, "BSH.Common.Option.AlarmAtHHMM", $tim6 );
-		} elsif ( $key =~ /(DoorState)|(ProgramProgress)/ ) {
+		} elsif ( $key =~ /(DoorState)/ ) {
 		  $checkstate = 1;
+		} elsif ( $key =~ /(ProgramProgress)/ ) {
+		  $checkstate = 1;
+		  #OperationState sometimes does not get update when starting a program. Retrieve when ProgramProgress is triggered
+		  $hash->{helper}->{status}=-1 if ($operationState =~ /Ready|Inactive/);
 		} elsif ( $key =~ /(OperationState)/ ) {
 		  $checkstate = 1;
 		  #Check if get programs was incomplete (e.g. because device was running or offline during FHEM startup) and trigger again if device becomes Ready
@@ -2604,7 +2611,7 @@ sub HomeConnect_ReadingsUpdate($$$$$) {
   my ( $hash, $reading, $value, $notify, $function ) = @_;
   my $nreading = HomeConnect_ReplaceReading( $hash, $reading );
   my $nvalue   = HomeConnect_ReplaceValue( $hash, $value );
-  #Translation: if reading is in list, translate the value and create a new reading with "tr_" prefix
+  #Translation: if reading is in list, translate the value and create a new reading (without prefix)
   my $trans = AttrVal ( $hash->{NAME}, "translate", "");
   $trans =~ s/,/\$|^/g;
   $trans =~ s/\s//g; #Remove potential whitespaces
